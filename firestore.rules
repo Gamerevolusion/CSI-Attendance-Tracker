@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if the requesting user is in the authorizedUsers allowlist
+    function isAuthorized() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/authorizedUsers/$(request.auth.token.email));
+    }
+
+    // Helper: check if the requesting user is an admin
+    function isAdmin() {
+      return isAuthorized()
+        && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.token.email)).data.isAdmin == true;
+    }
+
+    // Teams: read by any authorized user, write only by admins
+    match /teams/{teamId} {
+      allow read: if isAuthorized();
+      allow create, update, delete: if isAdmin();
+
+      // Members subcollection
+      match /members/{memberId} {
+        allow read: if isAuthorized();
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    // Attendance: read/write by any authorized user
+    match /attendance/{attendanceId} {
+      allow read: if isAuthorized();
+      allow create, update: if isAuthorized();
+      allow delete: if isAdmin();
+    }
+
+    // Authorized Users: read by any authorized user, write only by admins
+    match /authorizedUsers/{email} {
+      allow read: if isAuthorized();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
