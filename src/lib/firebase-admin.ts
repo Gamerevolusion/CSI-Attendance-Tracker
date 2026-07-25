@@ -1,6 +1,6 @@
 import { initializeApp, getApps, cert, getApp, type App } from "firebase-admin/app";
-import { getAuth, type Auth } from "firebase-admin/auth";
-import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 function getAdminApp(): App {
   const apps = getApps();
@@ -24,36 +24,23 @@ function getAdminApp(): App {
     );
   }
 
-  try {
-    return initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
-  } catch (error) {
-    console.error("Firebase Admin Initialization Error:", error);
-    throw error;
-  }
+  return initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  });
 }
 
-// Lazy proxies so Firebase Admin is only initialized at runtime upon API request,
-// preventing Next.js build-time initialization errors when env vars are empty.
-export const adminAuth = new Proxy({} as Auth, {
-  get(_, prop: keyof Auth) {
-    const authInstance = getAuth(getAdminApp());
-    const value = authInstance[prop];
-    return typeof value === "function" ? value.bind(authInstance) : value;
-  },
-});
+// Simple lazy getter functions instead of Proxy objects.
+// Proxies can cause issues in some serverless runtimes (e.g. Vercel).
+export function getAdminAuth() {
+  return getAuth(getAdminApp());
+}
 
-export const adminDb = new Proxy({} as Firestore, {
-  get(_, prop: keyof Firestore) {
-    const dbInstance = getFirestore(getAdminApp());
-    const value = dbInstance[prop];
-    return typeof value === "function" ? value.bind(dbInstance) : value;
-  },
-});
+export function getAdminDb() {
+  return getFirestore(getAdminApp());
+}
 
 export default getAdminApp;

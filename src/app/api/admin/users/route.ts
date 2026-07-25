@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ async function verifyAdmin(request: NextRequest): Promise<string | null> {
 
   try {
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    const decodedToken = await getAdminAuth().verifyIdToken(token);
     const email = decodedToken.email;
 
     if (!email) {
@@ -21,7 +21,7 @@ async function verifyAdmin(request: NextRequest): Promise<string | null> {
       return null;
     }
 
-    const userDoc = await adminDb.collection("authorizedUsers").doc(email).get();
+    const userDoc = await getAdminDb().collection("authorizedUsers").doc(email).get();
     if (!userDoc.exists) {
       console.error(`verifyAdmin: User ${email} not found in authorizedUsers`);
       return null;
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const snapshot = await adminDb
+    const snapshot = await getAdminDb()
       .collection("authorizedUsers")
       .get();
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  await adminDb.collection("authorizedUsers").doc(normalizedEmail).set({
+  await getAdminDb().collection("authorizedUsers").doc(normalizedEmail).set({
     name: name.trim(),
     isAdmin: isAdmin || false,
     addedAt: FieldValue.serverTimestamp(),
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
   if (name !== undefined) updateData.name = name.trim();
   if (isAdmin !== undefined) updateData.isAdmin = isAdmin;
 
-  await adminDb.collection("authorizedUsers").doc(email).update(updateData);
+  await getAdminDb().collection("authorizedUsers").doc(email).update(updateData);
 
   return NextResponse.json({ success: true });
 }
@@ -155,7 +155,7 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  await adminDb.collection("authorizedUsers").doc(email).delete();
+  await getAdminDb().collection("authorizedUsers").doc(email).delete();
 
   return NextResponse.json({ success: true });
 }

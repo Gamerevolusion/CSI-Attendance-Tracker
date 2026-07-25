@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import React from "react";
 
 export const dynamic = "force-dynamic";
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    const decodedToken = await getAdminAuth().verifyIdToken(token);
     const email = decodedToken.email;
 
     if (!email) {
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is authorized
-    const userDoc = await adminDb.collection("authorizedUsers").doc(email).get();
+    const userDoc = await getAdminDb().collection("authorizedUsers").doc(email).get();
     if (!userDoc.exists) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
@@ -265,13 +265,13 @@ export async function POST(request: NextRequest) {
     const teamsData = [];
 
     for (const teamId of teamIds) {
-      const teamDoc = await adminDb.collection("teams").doc(teamId).get();
+      const teamDoc = await getAdminDb().collection("teams").doc(teamId).get();
       if (!teamDoc.exists) continue;
 
       const team = teamDoc.data()!;
 
       // Get members
-      const membersSnapshot = await adminDb
+      const membersSnapshot = await getAdminDb()
         .collection("teams")
         .doc(teamId)
         .collection("members")
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
         .get();
 
       // Get attendance
-      const attendanceSnapshot = await adminDb
+      const attendanceSnapshot = await getAdminDb()
         .collection("attendance")
         .where("teamId", "==", teamId)
         .where("date", ">=", startDate)
