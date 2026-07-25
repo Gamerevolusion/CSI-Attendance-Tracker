@@ -216,7 +216,6 @@ function RosterContent() {
                         )}
                         <TableHead>Year</TableHead>
                         <TableHead>Department</TableHead>
-                        <TableHead>Timings</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -241,9 +240,6 @@ function RosterContent() {
                           )}
                           <TableCell>{member.year}</TableCell>
                           <TableCell>{member.department}</TableCell>
-                          <TableCell className="max-w-32 truncate">
-                            {member.exactTimings || "—"}
-                          </TableCell>
                           <TableCell>
                             <Badge
                               variant={
@@ -316,7 +312,6 @@ function RosterContent() {
                     role: editingMember.role || "",
                     year: editingMember.year,
                     department: editingMember.department,
-                    exactTimings: editingMember.exactTimings,
                   }
                 : undefined
             }

@@ -20,7 +20,7 @@ interface MemberFormProps {
   onCancel: () => void;
 }
 
-const YEAR_OPTIONS = ["FE", "SE", "TE", "BE"];
+const YEAR_OPTIONS = ["FY", "SY", "TY", "BE"];
 
 export function MemberForm({
   hasRoleField,
@@ -32,9 +32,6 @@ export function MemberForm({
   const [role, setRole] = useState(initialData?.role || "");
   const [year, setYear] = useState(initialData?.year || "");
   const [department, setDepartment] = useState(initialData?.department || "");
-  const [exactTimings, setExactTimings] = useState(
-    initialData?.exactTimings || ""
-  );
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,7 +45,6 @@ export function MemberForm({
         role: hasRoleField ? role.trim() : "",
         year,
         department: department.trim(),
-        exactTimings: exactTimings.trim(),
       });
     } finally {
       setSubmitting(false);
@@ -107,16 +103,6 @@ export function MemberForm({
             required
           />
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="member-timings">Exact Timings</Label>
-        <Input
-          id="member-timings"
-          value={exactTimings}
-          onChange={(e) => setExactTimings(e.target.value)}
-          placeholder="e.g., 9:00 AM - 3:00 PM"
-        />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

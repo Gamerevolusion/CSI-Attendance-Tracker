@@ -15,7 +15,6 @@ export interface Member {
   role: string | null;
   year: string;
   department: string;
-  exactTimings: string;
   active: boolean;
 }
 
@@ -48,7 +47,6 @@ export interface MemberFormData {
   role: string;
   year: string;
   department: string;
-  exactTimings: string;
 }
 
 export interface AttendanceRow {
