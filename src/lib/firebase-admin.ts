@@ -12,8 +12,10 @@ function getAdminApp(): App {
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
   if (privateKey) {
-    // Remove surrounding quotes if they exist, then replace escaped \n
-    privateKey = privateKey.replace(/^"|"$/g, "").replace(/\\n/g, "\n");
+    // Remove surrounding quotes (some env providers add them)
+    privateKey = privateKey.replace(/^["']|["']$/g, "");
+    // Replace literal \n strings with actual newlines (from .env files)
+    privateKey = privateKey.replace(/\\n/g, "\n");
   }
 
   if (!projectId || !clientEmail || !privateKey) {

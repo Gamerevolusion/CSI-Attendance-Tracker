@@ -4,9 +4,10 @@ import { FieldValue } from "firebase-admin/firestore";
 
 export const dynamic = "force-dynamic";
 
-async function verifyAdmin(request: NextRequest) {
+async function verifyAdmin(request: NextRequest): Promise<string | null> {
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
+    console.error("verifyAdmin: No Bearer token in Authorization header");
     return null;
   }
 
@@ -15,13 +16,24 @@ async function verifyAdmin(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const email = decodedToken.email;
 
-    if (!email) return null;
+    if (!email) {
+      console.error("verifyAdmin: No email in decoded token");
+      return null;
+    }
 
     const userDoc = await adminDb.collection("authorizedUsers").doc(email).get();
-    if (!userDoc.exists || !userDoc.data()?.isAdmin) return null;
+    if (!userDoc.exists) {
+      console.error(`verifyAdmin: User ${email} not found in authorizedUsers`);
+      return null;
+    }
+    if (!userDoc.data()?.isAdmin) {
+      console.error(`verifyAdmin: User ${email} exists but isAdmin is false`);
+      return null;
+    }
 
     return email;
-  } catch {
+  } catch (error) {
+    console.error("verifyAdmin error:", error);
     return null;
   }
 }
