@@ -28,23 +28,38 @@ async function verifyAdmin(request: NextRequest) {
 
 // GET: list all authorized users
 export async function GET(request: NextRequest) {
-  const adminEmail = await verifyAdmin(request);
-  if (!adminEmail) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  try {
+    const adminEmail = await verifyAdmin(request);
+    if (!adminEmail) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const snapshot = await adminDb
+      .collection("authorizedUsers")
+      .get();
+
+    const users = snapshot.docs.map((doc) => ({
+      email: doc.id,
+      ...doc.data(),
+      addedAt: doc.data().addedAt?.toDate?.()?.toISOString() || null,
+    }));
+
+    // Sort by addedAt descending (client-side to avoid needing an index)
+    users.sort((a, b) => {
+      if (!a.addedAt && !b.addedAt) return 0;
+      if (!a.addedAt) return 1;
+      if (!b.addedAt) return -1;
+      return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+    });
+
+    return NextResponse.json(users);
+  } catch (error) {
+    console.error("GET /api/admin/users error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  const snapshot = await adminDb
-    .collection("authorizedUsers")
-    .orderBy("addedAt", "desc")
-    .get();
-
-  const users = snapshot.docs.map((doc) => ({
-    email: doc.id,
-    ...doc.data(),
-    addedAt: doc.data().addedAt?.toDate?.()?.toISOString() || null,
-  }));
-
-  return NextResponse.json(users);
 }
 
 // POST: add a new authorized user
