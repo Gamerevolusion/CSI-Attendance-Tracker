@@ -11,6 +11,7 @@ import {
   Users,
   FileText,
   UserCog,
+  User,
   Menu,
   X,
   LogOut,
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/attendance/mark", label: "Mark Attendance", icon: ClipboardCheck },
   { href: "/attendance/history", label: "History", icon: History },
   { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/profile", label: "My Profile", icon: User },
 ];
 
 const adminNavItems = [
