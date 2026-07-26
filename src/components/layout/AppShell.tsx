@@ -47,38 +47,49 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--neo-bg)" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — neomorphic panel */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border
+          fixed inset-y-0 left-0 z-50 w-64
           transform transition-transform duration-200 ease-in-out
           lg:relative lg:translate-x-0
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
+        style={{
+          background: "var(--neo-bg)",
+          boxShadow: "6px 0 16px var(--neo-shadow-dark)",
+        }}
       >
         <div className="flex h-full flex-col">
           {/* Logo / Header */}
-          <div className="flex items-center justify-between px-4 py-5 border-b border-sidebar-border">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+          <div className="flex items-center justify-between px-4 py-5">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div
+                className="neo-raised flex h-9 w-9 items-center justify-center font-bold text-sm"
+                style={{ borderRadius: 10, color: "var(--neo-text)" }}
+              >
                 CSI
               </div>
-              <span className="font-heading font-semibold text-sidebar-foreground">
+              <span
+                className="font-heading font-semibold"
+                style={{ color: "var(--neo-text)" }}
+              >
                 Attendance
               </span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-sidebar-foreground hover:text-sidebar-foreground/80"
+              className="lg:hidden"
+              style={{ color: "var(--neo-text-muted)" }}
             >
               <X className="h-5 w-5" />
             </button>
@@ -86,7 +97,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* Nav Links */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            <p className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+            <p
+              className="px-3 mb-2 text-xs font-medium uppercase tracking-wider"
+              style={{ color: "var(--neo-text-muted)", opacity: 0.7 }}
+            >
               Main
             </p>
             {navItems.map((item) => {
@@ -98,14 +112,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                    transition-colors duration-150
-                    ${
-                      active
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                    }
+                    flex items-center gap-3 px-3 py-2.5 text-sm font-medium
+                    transition-all duration-150
+                    ${active ? "neo-raised" : ""}
                   `}
+                  style={{
+                    borderRadius: 12,
+                    color: active ? "var(--neo-text)" : "var(--neo-text-muted)",
+                  }}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   {item.label}
@@ -119,7 +133,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             {isAdmin && (
               <>
                 <div className="pt-4" />
-                <p className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+                <p
+                  className="px-3 mb-2 text-xs font-medium uppercase tracking-wider"
+                  style={{ color: "var(--neo-text-muted)", opacity: 0.7 }}
+                >
                   Admin
                 </p>
                 {adminNavItems.map((item) => {
@@ -131,14 +148,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                       href={item.href}
                       onClick={() => setSidebarOpen(false)}
                       className={`
-                        flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                        transition-colors duration-150
-                        ${
-                          active
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                        }
+                        flex items-center gap-3 px-3 py-2.5 text-sm font-medium
+                        transition-all duration-150
+                        ${active ? "neo-raised" : ""}
                       `}
+                      style={{
+                        borderRadius: 12,
+                        color: active ? "var(--neo-text)" : "var(--neo-text-muted)",
+                      }}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       {item.label}
@@ -153,8 +170,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           {/* User / Sign Out */}
-          <div className="border-t border-sidebar-border p-3">
-            <div className="flex items-center gap-3 px-3 py-2">
+          <div className="p-3">
+            <div
+              className="neo-pressed flex items-center gap-3 px-3 py-2.5"
+              style={{ borderRadius: 12 }}
+            >
               {user.photoURL ? (
                 <Image
                   src={user.photoURL}
@@ -166,23 +186,32 @@ export function AppShell({ children }: { children: ReactNode }) {
                   unoptimized
                 />
               ) : (
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                <div
+                  className="neo-raised h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium"
+                  style={{ color: "var(--neo-text)" }}
+                >
                   {user.displayName?.[0] || user.email?.[0] || "?"}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
+                <p
+                  className="text-sm font-medium truncate"
+                  style={{ color: "var(--neo-text)" }}
+                >
                   {user.displayName || "User"}
                 </p>
-                <p className="text-xs text-sidebar-foreground/50 truncate">
+                <p
+                  className="text-xs truncate"
+                  style={{ color: "var(--neo-text-muted)" }}
+                >
                   {user.email}
                 </p>
               </div>
             </div>
             <button
               onClick={signOut}
-              className="flex w-full items-center gap-3 px-3 py-2.5 mt-1 rounded-lg text-sm font-medium
-                text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-colors duration-150"
+              className="neo-btn flex w-full items-center gap-3 px-3 py-2.5 mt-2 text-sm font-medium"
+              style={{ color: "var(--neo-red)" }}
             >
               <LogOut className="h-4 w-4" />
               Sign Out
@@ -194,26 +223,38 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Bar (mobile) */}
-        <header className="flex items-center justify-between border-b px-4 py-3 lg:hidden">
+        <header
+          className="flex items-center justify-between px-4 py-3 lg:hidden"
+          style={{
+            background: "var(--neo-bg)",
+            boxShadow: "0 4px 8px var(--neo-shadow-dark)",
+          }}
+        >
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-foreground"
+            style={{ color: "var(--neo-text)" }}
           >
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-xs">
+            <div
+              className="neo-raised flex h-7 w-7 items-center justify-center font-bold text-xs"
+              style={{ borderRadius: 8, color: "var(--neo-text)" }}
+            >
               CSI
             </div>
-            <span className="font-heading font-semibold text-sm">
+            <span
+              className="font-heading font-semibold text-sm"
+              style={{ color: "var(--neo-text)" }}
+            >
               Attendance
             </span>
           </div>
-          <div className="w-5" /> {/* Spacer for centering */}
+          <div className="w-5" />
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto" style={{ background: "var(--neo-bg)" }}>
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             {children}
           </div>

@@ -45,78 +45,106 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ============================================================
+   Neomorphism Design System — Global
+   ============================================================ */
+
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Neo surface & shadow tokens */
+  --neo-bg: #e0e5ec;
+  --neo-shadow-dark: #a3b1c6;
+  --neo-shadow-light: #ffffff;
+  --neo-text: #2d3748;
+  --neo-text-muted: #6b7a8d;
+  --neo-accent: #4a5568;
+  --neo-green: #38a169;
+  --neo-red: #e53e3e;
+
+  /* Map shadcn tokens to neo palette */
+  --background: #e0e5ec;
+  --foreground: #2d3748;
+  --card: #e0e5ec;
+  --card-foreground: #2d3748;
+  --popover: #e8ecf1;
+  --popover-foreground: #2d3748;
+  --primary: #4a5568;
+  --primary-foreground: #ffffff;
+  --secondary: #d2d8e0;
+  --secondary-foreground: #2d3748;
+  --muted: #d2d8e0;
+  --muted-foreground: #6b7a8d;
+  --accent: #d2d8e0;
+  --accent-foreground: #2d3748;
+  --destructive: #e53e3e;
+  --border: transparent;
+  --input: transparent;
+  --ring: #718096;
+  --chart-1: #4a5568;
+  --chart-2: #718096;
+  --chart-3: #a0aec0;
+  --chart-4: #cbd5e0;
+  --chart-5: #e2e8f0;
+  --radius: 0.75rem;
+
+  /* Sidebar */
+  --sidebar: #dce1e8;
+  --sidebar-foreground: #2d3748;
+  --sidebar-primary: #4a5568;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d2d8e0;
+  --sidebar-accent-foreground: #2d3748;
+  --sidebar-border: transparent;
+  --sidebar-ring: #718096;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --neo-bg: #2a2f3a;
+  --neo-shadow-dark: #1e222b;
+  --neo-shadow-light: #363c49;
+  --neo-text: #e2e8f0;
+  --neo-text-muted: #94a3b8;
+  --neo-accent: #90cdf4;
+  --neo-green: #68d391;
+  --neo-red: #fc8181;
+
+  --background: #2a2f3a;
+  --foreground: #e2e8f0;
+  --card: #2a2f3a;
+  --card-foreground: #e2e8f0;
+  --popover: #313742;
+  --popover-foreground: #e2e8f0;
+  --primary: #90cdf4;
+  --primary-foreground: #1a202c;
+  --secondary: #353b47;
+  --secondary-foreground: #e2e8f0;
+  --muted: #353b47;
+  --muted-foreground: #94a3b8;
+  --accent: #353b47;
+  --accent-foreground: #e2e8f0;
+  --destructive: #fc8181;
+  --border: transparent;
+  --input: transparent;
+  --ring: #63b3ed;
+  --chart-1: #90cdf4;
+  --chart-2: #63b3ed;
+  --chart-3: #4299e1;
+  --chart-4: #3182ce;
+  --chart-5: #2b6cb0;
+
+  --sidebar: #262b35;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #90cdf4;
+  --sidebar-primary-foreground: #1a202c;
+  --sidebar-accent: #353b47;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: transparent;
+  --sidebar-ring: #63b3ed;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply outline-ring/50;
+    border-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
@@ -138,3 +166,325 @@
   h2 { @apply text-xl font-semibold sm:text-2xl; }
   h3 { @apply text-lg font-semibold; }
 }
+
+/* ============================================================
+   Neomorphism Component Overrides
+   ============================================================ */
+
+/* --- Cards --- */
+[data-slot="card"] {
+  background: var(--neo-bg);
+  border: none !important;
+  border-radius: 16px;
+  box-shadow:
+    6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light);
+}
+
+/* --- Buttons --- */
+[data-slot="button"] {
+  border: none !important;
+  border-radius: 12px;
+  box-shadow:
+    4px 4px 8px var(--neo-shadow-dark),
+    -4px -4px 8px var(--neo-shadow-light);
+  transition: all 0.15s ease;
+}
+[data-slot="button"]:hover {
+  box-shadow:
+    2px 2px 4px var(--neo-shadow-dark),
+    -2px -2px 4px var(--neo-shadow-light);
+}
+[data-slot="button"]:active {
+  box-shadow:
+    inset 2px 2px 4px var(--neo-shadow-dark),
+    inset -2px -2px 4px var(--neo-shadow-light);
+}
+
+/* --- Inputs --- */
+[data-slot="input"],
+[data-slot="textarea"] {
+  background: var(--neo-bg) !important;
+  border: none !important;
+  border-radius: 10px;
+  box-shadow:
+    inset 3px 3px 6px var(--neo-shadow-dark),
+    inset -3px -3px 6px var(--neo-shadow-light);
+}
+[data-slot="input"]:focus,
+[data-slot="textarea"]:focus {
+  box-shadow:
+    inset 4px 4px 8px var(--neo-shadow-dark),
+    inset -4px -4px 8px var(--neo-shadow-light);
+}
+
+/* --- Select trigger --- */
+[data-slot="select-trigger"] {
+  background: var(--neo-bg) !important;
+  border: none !important;
+  border-radius: 10px;
+  box-shadow:
+    3px 3px 6px var(--neo-shadow-dark),
+    -3px -3px 6px var(--neo-shadow-light);
+}
+
+/* --- Tabs list --- */
+[data-slot="tabs-list"] {
+  background: var(--neo-bg) !important;
+  border: none !important;
+  border-radius: 14px;
+  padding: 4px;
+  box-shadow:
+    inset 3px 3px 6px var(--neo-shadow-dark),
+    inset -3px -3px 6px var(--neo-shadow-light);
+}
+[data-slot="tabs-trigger"][data-state="active"] {
+  background: var(--neo-bg) !important;
+  border-radius: 10px;
+  box-shadow:
+    3px 3px 6px var(--neo-shadow-dark),
+    -3px -3px 6px var(--neo-shadow-light);
+}
+
+/* --- Badge --- */
+[data-slot="badge"] {
+  border: none !important;
+  box-shadow:
+    2px 2px 4px var(--neo-shadow-dark),
+    -2px -2px 4px var(--neo-shadow-light);
+}
+
+/* --- Skeleton --- */
+[data-slot="skeleton"] {
+  background: var(--neo-bg);
+  box-shadow:
+    inset 2px 2px 4px var(--neo-shadow-dark),
+    inset -2px -2px 4px var(--neo-shadow-light);
+}
+
+/* --- Dialog overlay & content --- */
+[data-slot="dialog-overlay"] {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+[data-slot="dialog-content"] {
+  background: var(--neo-bg) !important;
+  border: none !important;
+  border-radius: 20px;
+  box-shadow:
+    10px 10px 20px var(--neo-shadow-dark),
+    -10px -10px 20px var(--neo-shadow-light);
+}
+
+/* --- Table --- */
+[data-slot="table-header"] {
+  background: transparent;
+}
+[data-slot="table-row"] {
+  border-color: var(--neo-shadow-dark);
+  border-bottom-width: 1px;
+  opacity: 0.95;
+}
+[data-slot="table-row"]:last-child {
+  border-bottom-width: 0;
+}
+
+/* --- Switch --- */
+[data-slot="switch"] {
+  box-shadow:
+    inset 2px 2px 4px var(--neo-shadow-dark),
+    inset -2px -2px 4px var(--neo-shadow-light);
+}
+
+/* --- Separator --- */
+[data-slot="separator"] {
+  background: var(--neo-shadow-dark);
+  opacity: 0.3;
+}
+
+/* --- Popover --- */
+[data-slot="popover-content"] {
+  background: var(--neo-bg) !important;
+  border: none !important;
+  border-radius: 16px;
+  box-shadow:
+    8px 8px 16px var(--neo-shadow-dark),
+    -8px -8px 16px var(--neo-shadow-light);
+}
+
+/* ============================================================
+   Neomorphism Utility Classes (attendance page & general)
+   ============================================================ */
+
+.neo-raised {
+  background: var(--neo-bg);
+  border-radius: 16px;
+  box-shadow:
+    6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light);
+}
+
+.neo-pressed {
+  background: var(--neo-bg);
+  border-radius: 16px;
+  box-shadow:
+    inset 4px 4px 8px var(--neo-shadow-dark),
+    inset -4px -4px 8px var(--neo-shadow-light);
+}
+
+.neo-flat {
+  background: var(--neo-bg);
+  border-radius: 16px;
+}
+
+.neo-card {
+  background: var(--neo-bg);
+  border-radius: 16px;
+  box-shadow:
+    8px 8px 16px var(--neo-shadow-dark),
+    -8px -8px 16px var(--neo-shadow-light);
+  padding: 1.25rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.neo-btn {
+  background: var(--neo-bg);
+  border: none;
+  border-radius: 12px;
+  box-shadow:
+    4px 4px 8px var(--neo-shadow-dark),
+    -4px -4px 8px var(--neo-shadow-light);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--neo-text);
+  font-weight: 500;
+}
+.neo-btn:hover {
+  box-shadow:
+    2px 2px 4px var(--neo-shadow-dark),
+    -2px -2px 4px var(--neo-shadow-light);
+}
+.neo-btn:active,
+.neo-btn.neo-btn-active {
+  box-shadow:
+    inset 2px 2px 4px var(--neo-shadow-dark),
+    inset -2px -2px 4px var(--neo-shadow-light);
+}
+
+/* Cell states for attendance grid */
+.neo-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.neo-cell-noclass {
+  background: var(--neo-bg);
+  color: var(--neo-text-muted);
+  opacity: 0.5;
+}
+
+.neo-cell-present {
+  background: var(--neo-bg);
+  box-shadow:
+    3px 3px 6px var(--neo-shadow-dark),
+    -3px -3px 6px var(--neo-shadow-light);
+  color: var(--neo-green);
+}
+
+.neo-cell-missed {
+  background: var(--neo-bg);
+  box-shadow:
+    inset 3px 3px 6px var(--neo-shadow-dark),
+    inset -3px -3px 6px var(--neo-shadow-light);
+  color: var(--neo-red);
+}
+
+.neo-input {
+  background: var(--neo-bg);
+  border: none;
+  border-radius: 8px;
+  box-shadow:
+    inset 2px 2px 4px var(--neo-shadow-dark),
+    inset -2px -2px 4px var(--neo-shadow-light);
+  padding: 0.5rem 0.75rem;
+  color: var(--neo-text);
+  font-size: 0.875rem;
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+.neo-input:focus {
+  box-shadow:
+    inset 3px 3px 6px var(--neo-shadow-dark),
+    inset -3px -3px 6px var(--neo-shadow-light);
+}
+.neo-input::placeholder {
+  color: var(--neo-text-muted);
+}
+
+.neo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--neo-bg);
+  box-shadow:
+    2px 2px 4px var(--neo-shadow-dark),
+    -2px -2px 4px var(--neo-shadow-light);
+}
+.neo-badge-good { color: var(--neo-green); }
+.neo-badge-warn { color: var(--neo-red); }
+
+.neo-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--neo-bg);
+  box-shadow:
+    inset 3px 3px 6px var(--neo-shadow-dark),
+    inset -3px -3px 6px var(--neo-shadow-light);
+}
+
+.neo-tab {
+  padding: 6px 16px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
+  color: var(--neo-text-muted);
+}
+.neo-tab:hover { color: var(--neo-text); }
+.neo-tab-active {
+  background: var(--neo-bg);
+  color: var(--neo-text);
+  box-shadow:
+    3px 3px 6px var(--neo-shadow-dark),
+    -3px -3px 6px var(--neo-shadow-light);
+}
+
+.neo-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.25rem 0;
+}
+.neo-card-header:hover { opacity: 0.9; }

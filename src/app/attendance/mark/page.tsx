@@ -1,6 +1,5 @@
 "use client";
 
-import "./neomorphism.css";
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -136,25 +135,22 @@ function MarkAttendanceContent() {
 
   if (loading) {
     return (
-      <div className="neo-surface p-6">
-        <div className="space-y-4 max-w-3xl mx-auto">
-          <div className="neo-raised p-6 animate-pulse">
-            <div className="h-6 w-48 rounded bg-current opacity-10" />
-            <div className="h-4 w-64 rounded bg-current opacity-5 mt-2" />
-          </div>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="neo-card animate-pulse">
-              <div className="h-5 w-40 rounded bg-current opacity-10" />
-            </div>
-          ))}
+      <div className="space-y-4 max-w-3xl mx-auto">
+        <div className="neo-raised p-6 animate-pulse">
+          <div className="h-6 w-48 rounded bg-current opacity-10" />
+          <div className="h-4 w-64 rounded bg-current opacity-5 mt-2" />
         </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="neo-card animate-pulse">
+            <div className="h-5 w-40 rounded bg-current opacity-10" />
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="neo-surface -mx-4 -mt-6 px-4 pt-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 pb-8">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div>
           <h1
@@ -273,7 +269,6 @@ function MarkAttendanceContent() {
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 }
