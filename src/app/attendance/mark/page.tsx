@@ -176,14 +176,16 @@ function MarkAttendanceContent() {
         {/* Controls */}
         <div className="neo-raised p-3 sm:p-5 space-y-3 sm:space-y-4">
           {/* Team tabs */}
-          <div className="neo-scroll-x -mx-1 px-1">
-            <div className="neo-tabs">
+          <div className="neo-pressed p-1.5 rounded-2xl">
+            <div className="neo-scroll-x flex gap-1.5 p-1">
               {teams.map((team) => (
                 <button
                   key={team.id}
                   type="button"
-                  className={`neo-tab whitespace-nowrap ${
-                    selectedTeam === team.id ? "neo-tab-active" : ""
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap font-medium transition-all duration-150 shrink-0 ${
+                    selectedTeam === team.id
+                      ? "neo-raised font-bold text-foreground"
+                      : "text-muted-foreground hover:text-foreground opacity-80"
                   }`}
                   onClick={() => handleTeamChange(team.id)}
                 >

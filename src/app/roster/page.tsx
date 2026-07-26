@@ -171,22 +171,22 @@ function RosterContent() {
       </div>
 
       {/* Team Tabs Strip */}
-      <div className="neo-raised p-2 rounded-xl">
-        <div className="neo-scroll-x">
-          <div className="neo-tabs inline-flex w-full sm:w-auto">
-            {teams.map((team) => (
-              <button
-                key={team.id}
-                type="button"
-                className={`neo-tab whitespace-nowrap text-xs sm:text-sm font-semibold transition-all ${
-                  selectedTeam === team.id ? "neo-tab-active font-bold" : ""
-                }`}
-                onClick={() => setSelectedTeam(team.id)}
-              >
-                {team.name}
-              </button>
-            ))}
-          </div>
+      <div className="neo-pressed p-1.5 rounded-2xl">
+        <div className="neo-scroll-x flex gap-1.5 p-1">
+          {teams.map((team) => (
+            <button
+              key={team.id}
+              type="button"
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap font-medium transition-all duration-150 shrink-0 ${
+                selectedTeam === team.id
+                  ? "neo-raised font-bold text-foreground"
+                  : "text-muted-foreground hover:text-foreground opacity-80"
+              }`}
+              onClick={() => setSelectedTeam(team.id)}
+            >
+              {team.name}
+            </button>
+          ))}
         </div>
       </div>
 
