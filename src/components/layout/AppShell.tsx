@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -153,11 +154,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="border-t border-sidebar-border p-3">
             <div className="flex items-center gap-3 px-3 py-2">
               {user.photoURL ? (
-                <img
+                <Image
                   src={user.photoURL}
                   alt=""
+                  width={32}
+                  height={32}
                   className="h-8 w-8 rounded-full"
                   referrerPolicy="no-referrer"
+                  unoptimized
                 />
               ) : (
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">

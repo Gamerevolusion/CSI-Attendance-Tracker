@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
 import { getAttendanceByTeamAndDateRange } from "@/lib/actions/attendance";
-import { dateToISTString, formatDateDisplay } from "@/lib/date-utils";
+import { dateToISTString } from "@/lib/date-utils";
 import type { Team, ReportSummaryRow } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

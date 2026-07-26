@@ -9,8 +9,6 @@ import {
   deleteAttendanceRecord,
 } from "@/lib/actions/attendance";
 import {
-  getTodayIST,
-  getMonthStartIST,
   formatDateDisplay,
   dateToISTString,
 } from "@/lib/date-utils";
@@ -20,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+
 import {
   Select,
   SelectContent,
@@ -107,29 +105,36 @@ function HistoryContent() {
     loadMembers();
   }, [selectedTeam]);
 
-  // Load attendance records
-  const loadRecords = useCallback(async () => {
-    if (!selectedTeam) return;
-    setDataLoading(true);
-    try {
-      const startDate = dateToISTString(dateFrom);
-      const endDate = dateToISTString(dateTo);
-      const data = await getAttendanceByTeamAndDateRange(
-        selectedTeam,
-        startDate,
-        endDate
-      );
-      setRecords(data);
-    } catch {
-      toast.error("Failed to load attendance history");
-    } finally {
-      setDataLoading(false);
-    }
-  }, [selectedTeam, dateFrom, dateTo]);
+  // Refresh trigger — increment to force a reload
+  const [refreshKey, setRefreshKey] = useState(0);
+  const loadRecords = useCallback(() => setRefreshKey((k) => k + 1), []);
 
+  // Load attendance records
   useEffect(() => {
-    loadRecords();
-  }, [loadRecords]);
+    if (!selectedTeam) return;
+    let cancelled = false;
+
+    async function fetchRecords() {
+      setDataLoading(true);
+      try {
+        const startDate = dateToISTString(dateFrom);
+        const endDate = dateToISTString(dateTo);
+        const data = await getAttendanceByTeamAndDateRange(
+          selectedTeam,
+          startDate,
+          endDate
+        );
+        if (!cancelled) setRecords(data);
+      } catch {
+        if (!cancelled) toast.error("Failed to load attendance history");
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    }
+
+    fetchRecords();
+    return () => { cancelled = true; };
+  }, [selectedTeam, dateFrom, dateTo, refreshKey]);
 
   // Filter & sort
   let filtered = records;

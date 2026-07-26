@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
 import { getAttendanceByTeamAndDate, getAttendanceByTeamAndDateRange } from "@/lib/actions/attendance";
-import { getTodayIST, getMonthStartIST, getMonthEndIST, getCurrentMonthYear, formatDateDisplay, dateToISTString } from "@/lib/date-utils";
-import type { Team, Member, AttendanceRecord } from "@/types";
+import { getTodayIST, formatDateDisplay, dateToISTString } from "@/lib/date-utils";
+import type { Team } from "@/types";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 function DashboardContent() {
-  const { user } = useAuth();
+
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [loading, setLoading] = useState(true);
@@ -289,7 +289,7 @@ function DashboardContent() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Today's Status ({format(new Date(), "dd MMM")})
+                  Today&apos;s Status ({format(new Date(), "dd MMM")})
                 </CardTitle>
                 {todayMarked ? (
                   <CheckCircle2 className="h-5 w-5 text-green-500" />

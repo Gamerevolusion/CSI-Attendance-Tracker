@@ -11,7 +11,7 @@ async function generatePDF(data: {
   endDate: string;
   generatedAt: string;
 }) {
-  const { Document, Page, Text, View, StyleSheet, renderToBuffer, Font } = await import("@react-pdf/renderer");
+  const { Document, Page, Text, View, StyleSheet, renderToBuffer } = await import("@react-pdf/renderer");
 
   const styles = StyleSheet.create({
     page: {

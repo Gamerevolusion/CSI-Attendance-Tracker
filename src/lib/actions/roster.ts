@@ -6,7 +6,6 @@ import {
   updateDoc,
   query,
   orderBy,
-  serverTimestamp,
   getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";

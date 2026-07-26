@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+
 import type { Team, Member, MemberFormData } from "@/types";
 import { getTeams, getTeamMembers, addMember, updateMember, toggleMemberActive } from "@/lib/actions/roster";
 import { AdminRoute } from "@/components/AdminRoute";

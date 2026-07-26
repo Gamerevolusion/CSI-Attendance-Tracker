@@ -186,7 +186,7 @@ function ProfileContent() {
                   onClick={() => { setUseCustomRole(true); setRole(""); }}
                   className="text-xs text-muted-foreground hover:text-foreground underline"
                 >
-                  My role isn't listed
+                  My role isn&apos;t listed
                 </button>
               </div>
             ) : (

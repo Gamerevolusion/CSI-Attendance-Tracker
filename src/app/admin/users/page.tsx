@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, UserCog, ShieldCheck, Shield } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 function AdminUsersContent() {
@@ -47,25 +47,30 @@ function AdminUsersContent() {
     [user]
   );
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const token = await getToken();
-      const res = await fetch("/api/admin/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to load users");
-      const data = await res.json();
-      setUsers(data);
-    } catch {
-      toast.error("Failed to load authorized users");
-    } finally {
-      setLoading(false);
-    }
-  }, [getToken]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const loadUsers = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    let cancelled = false;
+    async function fetchUsers() {
+      try {
+        const token = await getToken();
+        if (cancelled) return;
+        const res = await fetch("/api/admin/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to load users");
+        const data = await res.json();
+        if (!cancelled) setUsers(data);
+      } catch {
+        if (!cancelled) toast.error("Failed to load authorized users");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchUsers();
+    return () => { cancelled = true; };
+  }, [getToken, refreshKey]);
 
   const handleAdd = async () => {
     if (!newEmail.trim() || !newName.trim()) return;

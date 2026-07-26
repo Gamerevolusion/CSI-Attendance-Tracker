@@ -1,7 +1,6 @@
 import {
   doc,
   getDocs,
-  setDoc,
   deleteDoc,
   query,
   where,
@@ -98,53 +97,6 @@ export async function getAttendanceByTeamAndDateRange(
     updatedAt: doc.data().updatedAt?.toDate() || new Date(),
   })) as AttendanceRecord[];
 }
-
-/**
- * Get attendance records for a specific member within a date range.
- */
-export async function getAttendanceByMemberAndDateRange(
-  memberId: string,
-  startDate: string,
-  endDate: string
-): Promise<AttendanceRecord[]> {
-  const q = query(
-    collection(db, "attendance"),
-    where("memberId", "==", memberId),
-    where("date", ">=", startDate),
-    where("date", "<=", endDate),
-    orderBy("date", "desc")
-  );
-
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-  })) as AttendanceRecord[];
-}
-
-/**
- * Get all attendance records across all teams within a date range.
- */
-export async function getAllAttendanceByDateRange(
-  startDate: string,
-  endDate: string
-): Promise<AttendanceRecord[]> {
-  const q = query(
-    collection(db, "attendance"),
-    where("date", ">=", startDate),
-    where("date", "<=", endDate),
-    orderBy("date", "desc")
-  );
-
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-  })) as AttendanceRecord[];
-}
-
 // ============================================================
 // Delete Attendance (admin only)
 // ============================================================

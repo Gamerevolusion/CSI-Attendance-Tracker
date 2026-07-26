@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
@@ -8,7 +8,7 @@ import {
   saveAttendance,
   getAttendanceByTeamAndDate,
 } from "@/lib/actions/attendance";
-import { getTodayIST, formatDateDisplay, dateToISTString } from "@/lib/date-utils";
+import { formatDateDisplay, dateToISTString } from "@/lib/date-utils";
 import type { Team, Member, AttendanceRow } from "@/types";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { AttendanceGrid } from "@/components/attendance/AttendanceGrid";
-import { CalendarIcon, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { CalendarIcon, Save, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -66,67 +66,71 @@ function MarkAttendanceContent() {
   }, []);
 
   // Load members + existing attendance when team or date changes
-  const loadData = useCallback(async () => {
+  useEffect(() => {
     if (!selectedTeam) return;
+    let cancelled = false;
 
-    setMembersLoading(true);
-    try {
-      const [teamMembers, existing] = await Promise.all([
-        getTeamMembers(selectedTeam),
-        getAttendanceByTeamAndDate(selectedTeam, dateStr),
-      ]);
+    async function fetchData() {
+      setMembersLoading(true);
+      try {
+        const [teamMembers, existing] = await Promise.all([
+          getTeamMembers(selectedTeam),
+          getAttendanceByTeamAndDate(selectedTeam, dateStr),
+        ]);
 
-      setMembers(teamMembers);
+        if (cancelled) return;
 
-      // Build rows — merge with existing attendance data if any
-      const existingMap = new Map(
-        existing.map((r) => [r.memberId, r])
-      );
+        setMembers(teamMembers);
 
-      const hasExisting = existing.length > 0;
-      setExistingData(hasExisting);
+        // Build rows — merge with existing attendance data if any
+        const existingMap = new Map(
+          existing.map((r) => [r.memberId, r])
+        );
 
-      // If existing data has a different lecture count, use it
-      if (hasExisting && existing[0]?.lectureCount) {
-        setLectureCount(existing[0].lectureCount);
-      }
+        const hasExisting = existing.length > 0;
+        setExistingData(hasExisting);
 
-      const currentLectureCount = hasExisting && existing[0]?.lectureCount
-        ? existing[0].lectureCount
-        : lectureCount;
+        // If existing data has a different lecture count, use it
+        if (hasExisting && existing[0]?.lectureCount) {
+          setLectureCount(existing[0].lectureCount);
+        }
 
-      const newRows: AttendanceRow[] = teamMembers.map((member) => {
-        const existingRecord = existingMap.get(member.id);
-        if (existingRecord) {
-          // Resize lectures array if lecture count changed
-          const lectures = [...existingRecord.lectures];
-          while (lectures.length < currentLectureCount) lectures.push(false);
+        const currentLectureCount = hasExisting && existing[0]?.lectureCount
+          ? existing[0].lectureCount
+          : lectureCount;
+
+        const newRows: AttendanceRow[] = teamMembers.map((member) => {
+          const existingRecord = existingMap.get(member.id);
+          if (existingRecord) {
+            // Resize lectures array if lecture count changed
+            const lectures = [...existingRecord.lectures];
+            while (lectures.length < currentLectureCount) lectures.push(false);
+            return {
+              memberId: member.id,
+              memberName: member.name,
+              lectures: lectures.slice(0, currentLectureCount),
+              totalMissed: lectures.slice(0, currentLectureCount).filter(Boolean).length,
+            };
+          }
           return {
             memberId: member.id,
             memberName: member.name,
-            lectures: lectures.slice(0, currentLectureCount),
-            totalMissed: lectures.slice(0, currentLectureCount).filter(Boolean).length,
+            lectures: new Array(currentLectureCount).fill(false),
+            totalMissed: 0,
           };
-        }
-        return {
-          memberId: member.id,
-          memberName: member.name,
-          lectures: new Array(currentLectureCount).fill(false),
-          totalMissed: 0,
-        };
-      });
+        });
 
-      setRows(newRows);
-    } catch {
-      toast.error("Failed to load attendance data");
-    } finally {
-      setMembersLoading(false);
+        setRows(newRows);
+      } catch {
+        if (!cancelled) toast.error("Failed to load attendance data");
+      } finally {
+        if (!cancelled) setMembersLoading(false);
+      }
     }
-  }, [selectedTeam, dateStr, lectureCount]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchData();
+    return () => { cancelled = true; };
+  }, [selectedTeam, dateStr, lectureCount]);
 
   // Handle team change
   const handleTeamChange = (teamId: string) => {

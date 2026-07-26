@@ -36,9 +36,14 @@ service cloud.firestore {
     }
 
     // Authorized Users: read by any authorized user, write only by admins
+    // Exception: users can update their OWN name and role (but NOT isAdmin)
     match /authorizedUsers/{email} {
       allow read: if isAuthorized();
-      allow create, update, delete: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isAuthorized()
+            && email == request.auth.token.email
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'role']));
     }
   }
 }
