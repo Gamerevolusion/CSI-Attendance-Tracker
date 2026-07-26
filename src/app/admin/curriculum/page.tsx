@@ -124,8 +124,10 @@ function CurriculumContent() {
       setNewYear("");
       setNewDept("");
       toast.success(`Created ${newYear} ${newDept}`);
-    } catch {
-      toast.error("Failed to create curriculum");
+    } catch (err) {
+      console.error("createCurriculum failed:", err);
+      const msg = err instanceof Error ? err.message : "Failed to create curriculum";
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
