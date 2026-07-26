@@ -259,21 +259,21 @@ export function MemberAttendanceCard({
               No curriculum defined for {member.year} {member.department}
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse" style={{ minWidth: dates.length * 52 + 120 }}>
+            <div className="overflow-x-auto rounded-xl p-0.5" style={{ background: "var(--neo-bg)" }}>
+              <table className="neo-attendance-table" style={{ minWidth: dates.length * 52 + 130 }}>
                 <thead>
                   <tr>
                     <th
-                      className="text-left text-xs font-medium py-2 px-2 sticky left-0"
-                      style={{ color: "var(--neo-text-muted)", background: "var(--neo-bg)", minWidth: 120 }}
+                      className="text-left text-xs font-bold py-2.5 px-3 sticky left-0 z-10"
+                      style={{ background: "var(--neo-bg)", minWidth: 130 }}
                     >
                       Subject
                     </th>
                     {dates.map((date) => (
                       <th
                         key={date}
-                        className="text-center text-xs font-medium py-2 px-1"
-                        style={{ color: "var(--neo-text-muted)", minWidth: 44 }}
+                        className="text-center text-xs font-bold py-2.5 px-1"
+                        style={{ minWidth: 46 }}
                       >
                         {formatDateCol(date)}
                       </th>
@@ -284,12 +284,12 @@ export function MemberAttendanceCard({
                   {subjects.map((subject) => (
                     <tr key={subject.id}>
                       <td
-                        className="text-xs font-medium py-1.5 px-2 sticky left-0"
-                        style={{ background: "var(--neo-bg)" }}
+                        className="text-xs font-semibold py-2 px-3 sticky left-0 z-10"
+                        style={{ background: "var(--neo-bg)", color: "var(--neo-text)" }}
                       >
                         <span>{subject.subjectName}</span>
                         <span
-                          className="ml-1 text-[10px] opacity-50"
+                          className="ml-1.5 text-[10px] px-1 py-0.5 rounded font-bold opacity-60 border border-current/20"
                         >
                           {subject.type === "Practical" ? "P" : "L"}
                         </span>
@@ -298,8 +298,8 @@ export function MemberAttendanceCard({
                         const cell = cells[subject.id]?.[date];
                         if (!cell) return <td key={date} />;
                         return (
-                          <td key={date} className="text-center py-1.5 px-1">
-                            <div className="flex flex-col items-center gap-0.5">
+                          <td key={date} className="text-center py-2 px-1">
+                            <div className="flex flex-col items-center gap-1">
                               <button
                                 type="button"
                                 className={`neo-cell ${
@@ -319,7 +319,7 @@ export function MemberAttendanceCard({
                                 }
                               >
                                 {cell.state === "no-class"
-                                  ? ""
+                                  ? "·"
                                   : cell.state === "present"
                                   ? "—"
                                   : cell.missed}
@@ -328,7 +328,7 @@ export function MemberAttendanceCard({
                                 <div className="flex gap-0.5 items-center">
                                   <button
                                     type="button"
-                                    className="text-[10px] px-1 rounded opacity-60 hover:opacity-100"
+                                    className="text-[11px] font-bold w-4 h-4 flex items-center justify-center rounded bg-black/5 dark:bg-white/10 opacity-75 hover:opacity-100 transition-opacity"
                                     onClick={() =>
                                       updateMissedCount(
                                         subject.id,
@@ -341,7 +341,7 @@ export function MemberAttendanceCard({
                                   </button>
                                   <button
                                     type="button"
-                                    className="text-[10px] px-1 rounded opacity-60 hover:opacity-100"
+                                    className="text-[11px] font-bold w-4 h-4 flex items-center justify-center rounded bg-black/5 dark:bg-white/10 opacity-75 hover:opacity-100 transition-opacity"
                                     onClick={() =>
                                       updateMissedCount(
                                         subject.id,
@@ -364,15 +364,19 @@ export function MemberAttendanceCard({
                   {/* Total missed row */}
                   <tr>
                     <td
-                      className="text-xs font-bold py-2 px-2 sticky left-0"
-                      style={{ background: "var(--neo-bg)", color: "var(--neo-text)" }}
+                      className="text-xs font-bold py-2.5 px-3 sticky left-0 z-10"
+                      style={{ 
+                        background: "var(--neo-bg)", 
+                        color: "var(--neo-text)",
+                        borderTop: "2px solid var(--neo-grid-line)"
+                      }}
                     >
                       Total Missed
                     </td>
                     {dates.map((date) => (
-                      <td key={date} className="text-center py-2 px-1">
+                      <td key={date} className="text-center py-2.5 px-1" style={{ borderTop: "2px solid var(--neo-grid-line)" }}>
                         <span
-                          className={`neo-badge text-[11px] ${
+                          className={`neo-badge text-[11px] px-2 py-1 ${
                             totalMissedPerDate[date] === 0
                               ? "neo-badge-good"
                               : "neo-badge-warn"

@@ -59,6 +59,7 @@
   --neo-accent: #4a5568;
   --neo-green: #38a169;
   --neo-red: #e53e3e;
+  --neo-grid-line: rgba(163, 177, 198, 0.45);
 
   /* Map shadcn tokens to neo palette */
   --background: #e0e5ec;
@@ -106,6 +107,7 @@
   --neo-accent: #90cdf4;
   --neo-green: #68d391;
   --neo-red: #fc8181;
+  --neo-grid-line: rgba(255, 255, 255, 0.08);
 
   --background: #2a2f3a;
   --foreground: #e2e8f0;
@@ -389,7 +391,43 @@
 .neo-cell-noclass {
   background: var(--neo-bg);
   color: var(--neo-text-muted);
-  opacity: 0.5;
+  border: 1px dashed var(--neo-grid-line);
+  box-shadow:
+    inset 1px 1px 3px var(--neo-shadow-dark),
+    inset -1px -1px 3px var(--neo-shadow-light);
+  opacity: 0.75;
+}
+.neo-cell-noclass:hover {
+  opacity: 1;
+  border-style: solid;
+}
+
+/* Attendance grid table and cell borders */
+.neo-attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--neo-grid-line);
+  border-radius: 12px;
+}
+
+.neo-attendance-table th,
+.neo-attendance-table td {
+  border: 1px solid var(--neo-grid-line);
+  padding: 8px 6px;
+}
+
+.neo-attendance-table thead th {
+  background: var(--neo-bg);
+  border-bottom: 2px solid var(--neo-grid-line);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--neo-text-muted);
+}
+
+.neo-attendance-table tbody tr:hover td {
+  background: rgba(125, 135, 155, 0.05);
 }
 
 .neo-cell-present {
