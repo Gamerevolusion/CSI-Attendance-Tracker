@@ -8,6 +8,8 @@ import { getEntriesByTeam } from "@/lib/actions/attendanceEntries";
 import { getCurriculums, getSubjects } from "@/lib/actions/curriculum";
 import { dateToISTString } from "@/lib/date-utils";
 import type { Team, ReportSummaryRow, Subject } from "@/types";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -202,38 +204,169 @@ function ReportsContent() {
     try {
       const startDate = dateToISTString(dateFrom);
       const endDate = dateToISTString(dateTo);
-      const token = await user?.getIdToken();
 
-      const res = await fetch("/api/reports/pdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          teamIds: Array.from(selectedTeamIds),
-          startDate,
-          endDate,
-        }),
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
       });
 
-      if (!res.ok) {
-        const error = await res.text();
-        throw new Error(error || "Failed to generate PDF");
+      let firstPage = true;
+
+      for (const teamId of selectedTeamIds) {
+        const team = teams.find((t) => t.id === teamId);
+        if (!team) continue;
+
+        if (!firstPage) {
+          doc.addPage();
+        }
+        firstPage = false;
+
+        // Fetch team members and attendance entries
+        const [members, entries] = await Promise.all([
+          getTeamMembers(teamId, true),
+          getEntriesByTeam(teamId, startDate, endDate),
+        ]);
+
+        const memberMap = new Map<
+          string,
+          ReportSummaryRow & {
+            dates: Set<string>;
+            subjectMissed: Record<string, number>;
+          }
+        >();
+
+        for (const m of members) {
+          memberMap.set(m.id, {
+            memberId: m.id,
+            memberName: m.name,
+            role: m.role,
+            year: m.year,
+            department: m.department,
+            totalMissed: 0,
+            sessionsRecorded: 0,
+            dates: new Set(),
+            subjectMissed: {},
+          });
+        }
+
+        for (const entry of entries) {
+          const member = memberMap.get(entry.memberId);
+          if (member) {
+            member.totalMissed += entry.missed;
+            member.dates.add(entry.date);
+            if (!member.subjectMissed[entry.subjectId]) {
+              member.subjectMissed[entry.subjectId] = 0;
+            }
+            member.subjectMissed[entry.subjectId] += entry.missed;
+          }
+        }
+
+        const rows: ReportSummaryRow[] = Array.from(memberMap.values()).map(
+          ({ dates, subjectMissed, ...rest }) => ({
+            ...rest,
+            sessionsRecorded: dates.size,
+            subjectBreakdown: Object.entries(subjectMissed).map(
+              ([subId, missed]) => ({
+                subjectName: subjectMap[subId]?.subjectName || subId,
+                facultyName: subjectMap[subId]?.facultyName || "—",
+                missed,
+              })
+            ),
+          })
+        );
+
+        // Render PDF header for team
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(45, 55, 72);
+        doc.text("CSI Attendance Report", 14, 20);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(100, 110, 125);
+        doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 14, 28);
+
+        const startY = 35;
+
+        if (rows.length === 0) {
+          doc.setFontSize(12);
+          doc.text("No member data recorded in this range.", 14, startY);
+          continue;
+        }
+
+        autoTable(doc, {
+          startY: startY,
+          head: [["Name", "Year / Dept", "Role", "Sessions", "Total Missed"]],
+          body: rows.map((r) => [
+            r.memberName,
+            `${r.year} - ${r.department}`,
+            r.role || "Member",
+            String(r.sessionsRecorded),
+            `${r.totalMissed} lecture(s)`,
+          ]),
+          styles: { fontSize: 10, cellPadding: 4, textColor: [45, 55, 72] },
+          headStyles: { fillColor: [74, 85, 104], textColor: 255, fontStyle: "bold" },
+          columnStyles: {
+            4: { fontStyle: "bold", halign: "right" },
+          },
+        });
+
+        const missedRows: any[] = [];
+        rows.forEach((r) => {
+          if ((r.subjectBreakdown?.length ?? 0) > 0 && r.totalMissed > 0) {
+            missedRows.push([
+              {
+                content: `${r.memberName} (${r.year}-${r.department}) — ${r.totalMissed} total missed`,
+                colSpan: 3,
+                styles: { fontStyle: "bold", fillColor: [238, 242, 246], textColor: [45, 55, 72] },
+              },
+            ]);
+            r.subjectBreakdown?.forEach((sub) => {
+              if (sub.missed > 0) {
+                missedRows.push([`   ${sub.subjectName}`, sub.facultyName || "—", `${sub.missed} period(s)`]);
+              }
+            });
+          }
+        });
+
+        if (missedRows.length > 0) {
+          const previousTableY = (doc as any).lastAutoTable?.finalY || startY;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(13);
+          doc.setTextColor(45, 55, 72);
+          doc.text("Subject Breakdown of Missed Lectures", 14, previousTableY + 14);
+
+          autoTable(doc, {
+            startY: previousTableY + 18,
+            head: [["Subject", "Faculty", "Missed Count"]],
+            body: missedRows,
+            styles: { fontSize: 9, cellPadding: 3, textColor: [45, 55, 72] },
+            headStyles: { fillColor: [113, 128, 150], textColor: 255 },
+            columnStyles: {
+              2: { halign: "right", fontStyle: "bold" },
+            },
+          });
+        }
       }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `attendance-report_${startDate}_${endDate}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      // Footer page numbers and timestamp
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text("CSI Committee Attendance Report", 14, doc.internal.pageSize.height - 10);
+        doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width - 28, doc.internal.pageSize.height - 10);
+      }
 
+      doc.save(`attendance-report_${dateToISTString(dateFrom)}_${dateToISTString(dateTo)}.pdf`);
       toast.success("PDF downloaded successfully");
     } catch (err) {
+      console.error("PDF generation error:", err);
       toast.error(
-        err instanceof Error ? err.message : "Failed to download PDF"
+        err instanceof Error ? err.message : "Failed to generate PDF report"
       );
     } finally {
       setDownloading(false);
