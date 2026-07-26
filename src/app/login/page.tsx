@@ -3,6 +3,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Image from "next/image";
 import {
   ClipboardCheck,
   ShieldCheck,
@@ -91,7 +92,7 @@ export default function LoginPage() {
               {/* Main Headline */}
               <div className="animate-fade-up delay-200 space-y-3">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight font-heading leading-tight">
-                  Smart Committee <br className="hidden sm:block" />
+                  CSI Committee <br className="hidden sm:block" />
                   <span className="bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
                     Attendance Management
                   </span>
@@ -179,8 +180,14 @@ export default function LoginPage() {
                 style={{ borderRadius: 24 }}
               >
                 {/* Logo Badge */}
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl neo-raised font-bold text-lg">
-                  <ClipboardCheck className="h-7 w-7 text-blue-600" />
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl neo-raised p-2">
+                  <Image
+                    src="/csi.png"
+                    alt="CSI Logo"
+                    width={56}
+                    height={56}
+                    className="h-12 w-12 object-contain drop-shadow-sm"
+                  />
                 </div>
 
                 <div>

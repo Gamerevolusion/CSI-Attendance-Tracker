@@ -435,7 +435,9 @@ export function MemberAttendanceCard({
           <div className="flex justify-end pt-2">
             <button
               type="button"
-              className="neo-btn flex items-center gap-2 px-5 py-2.5 text-sm"
+              className={`neo-btn flex items-center gap-2 px-5 py-2.5 text-sm ${
+                hasDirty ? "animate-unsaved-pulse" : ""
+              }`}
               onClick={handleSave}
               disabled={saving || !hasDirty}
               style={{ opacity: saving || !hasDirty ? 0.5 : 1 }}

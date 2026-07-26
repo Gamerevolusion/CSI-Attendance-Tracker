@@ -205,6 +205,22 @@ function ReportsContent() {
       const startDate = dateToISTString(dateFrom);
       const endDate = dateToISTString(dateTo);
 
+      // Preload logo for PDF
+      let logoBase64: string | null = null;
+      try {
+        const logoRes = await fetch("/csi.png");
+        if (logoRes.ok) {
+          const blob = await logoRes.blob();
+          logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch {
+        // Fallback without logo image
+      }
+
       const doc = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -277,15 +293,28 @@ function ReportsContent() {
         );
 
         // Render PDF header for team
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.setTextColor(45, 55, 72);
-        doc.text("CSI Attendance Report", 14, 20);
+        if (logoBase64) {
+          doc.addImage(logoBase64, "PNG", 14, 12, 14, 14);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(16);
+          doc.setTextColor(45, 55, 72);
+          doc.text("CSI Attendance Report", 32, 20);
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        doc.setTextColor(100, 110, 125);
-        doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 14, 28);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(100, 110, 125);
+          doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 32, 26);
+        } else {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(18);
+          doc.setTextColor(45, 55, 72);
+          doc.text("CSI Attendance Report", 14, 20);
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(11);
+          doc.setTextColor(100, 110, 125);
+          doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 14, 28);
+        }
 
         const startY = 35;
 
@@ -479,7 +508,11 @@ function ReportsContent() {
               )}
               Preview
             </Button>
-            <Button className="w-full sm:w-auto" onClick={handleDownload} disabled={downloading}>
+            <Button
+              className={`w-full sm:w-auto ${downloading ? "animate-shimmer-sweep" : ""}`}
+              onClick={handleDownload}
+              disabled={downloading}
+            >
               {downloading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

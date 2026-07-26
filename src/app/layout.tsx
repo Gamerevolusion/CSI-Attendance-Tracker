@@ -21,6 +21,9 @@ const plusJakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "CSI Attendance Tracker",
   description: "Committee attendance tracking and management system for CSI",
+  icons: {
+    icon: "/csi.png",
+  },
 };
 
 export default function RootLayout({

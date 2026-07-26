@@ -83,12 +83,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* Logo / Header */}
           <div className="flex items-center justify-between px-4 py-5">
             <Link href="/" className="flex items-center gap-2.5">
-              <div
-                className="neo-raised flex h-9 w-9 items-center justify-center font-bold text-sm"
-                style={{ borderRadius: 10, color: "var(--neo-text)" }}
-              >
-                CSI
-              </div>
+              <Image
+                src="/csi.png"
+                alt="CSI Logo"
+                width={36}
+                height={36}
+                className="h-9 w-9 object-contain drop-shadow-sm shrink-0"
+              />
               <span
                 className="font-heading font-semibold"
                 style={{ color: "var(--neo-text)" }}
@@ -124,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   className={`
                     flex items-center gap-3 px-3 py-3.5 text-sm font-medium
                     transition-all duration-150
-                    ${active ? "neo-raised" : ""}
+                    ${active ? "neo-raised neo-nav-link-active" : ""}
                   `}
                   style={{
                     borderRadius: 12,
@@ -160,7 +161,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       className={`
                         flex items-center gap-3 px-3 py-3.5 text-sm font-medium
                         transition-all duration-150
-                        ${active ? "neo-raised" : ""}
+                        ${active ? "neo-raised neo-nav-link-active" : ""}
                       `}
                       style={{
                         borderRadius: 12,
@@ -248,12 +249,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div
-              className="neo-raised flex h-7 w-7 items-center justify-center font-bold text-xs"
-              style={{ borderRadius: 8, color: "var(--neo-text)" }}
-            >
-              CSI
-            </div>
+            <Image
+              src="/csi.png"
+              alt="CSI Logo"
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain drop-shadow-sm shrink-0"
+            />
             <span
               className="font-heading font-semibold text-sm"
               style={{ color: "var(--neo-text)" }}

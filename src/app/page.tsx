@@ -292,7 +292,7 @@ function DashboardContent() {
                   Today&apos;s Status ({format(new Date(), "dd MMM")})
                 </CardTitle>
                 {todayMarked ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <CheckCircle2 className="h-5 w-5 text-green-500 animate-halo-glow" />
                 ) : (
                   <XCircle className="h-5 w-5 text-muted-foreground/30" />
                 )}
