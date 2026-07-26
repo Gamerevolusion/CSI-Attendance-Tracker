@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import type { Member, Subject, CellData, CellState, AttendanceEntry } from "@/types";
 import type { EntryWrite } from "@/lib/actions/attendanceEntries";
 import { saveAttendanceEntries } from "@/lib/actions/attendanceEntries";
+import { saveAttendance } from "@/lib/actions/attendance";
 import { ChevronDown, ChevronRight, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -181,6 +182,37 @@ export function MemberAttendanceCard({
 
       if (entries.length > 0 || deletions.length > 0) {
         await saveAttendanceEntries(entries, deletions, markedByEmail);
+
+        // Also sync summary records to attendance collection for History page
+        for (const date of dates) {
+          let dateMissed = 0;
+          let hasEntriesForDate = false;
+          for (const subject of subjects) {
+            const cell = cells[subject.id]?.[date];
+            if (cell && cell.state !== "no-class") {
+              hasEntriesForDate = true;
+              if (cell.state === "missed") {
+                dateMissed += cell.missed;
+              }
+            }
+          }
+          if (hasEntriesForDate) {
+            await saveAttendance(
+              teamId,
+              date,
+              subjects.length,
+              [
+                {
+                  memberId: member.id,
+                  memberName: member.name,
+                  lectures: Array(dateMissed).fill(true),
+                  totalMissed: dateMissed,
+                },
+              ],
+              markedByEmail
+            );
+          }
+        }
       }
 
       // Mark all cells as not dirty

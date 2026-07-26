@@ -8,6 +8,7 @@ import {
   getAttendanceByTeamAndDateRange,
   deleteAttendanceRecord,
 } from "@/lib/actions/attendance";
+import { getEntriesByTeam } from "@/lib/actions/attendanceEntries";
 import {
   formatDateDisplay,
   dateToISTString,
@@ -90,25 +91,11 @@ function HistoryContent() {
     load();
   }, []);
 
-  // Load members when team changes
-  useEffect(() => {
-    if (!selectedTeam) return;
-    async function loadMembers() {
-      try {
-        const m = await getTeamMembers(selectedTeam, true);
-        setMembers(m);
-      } catch {
-        // ignore
-      }
-    }
-    loadMembers();
-  }, [selectedTeam]);
-
-  // Refresh trigger — increment to force a reload
+  // Refresh trigger
   const [refreshKey, setRefreshKey] = useState(0);
   const loadRecords = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  // Load attendance records
+  // Load members and attendance records
   useEffect(() => {
     if (!selectedTeam) return;
     let cancelled = false;
@@ -118,12 +105,67 @@ function HistoryContent() {
       try {
         const startDate = dateToISTString(dateFrom);
         const endDate = dateToISTString(dateTo);
-        const data = await getAttendanceByTeamAndDateRange(
-          selectedTeam,
-          startDate,
-          endDate
-        );
-        if (!cancelled) setRecords(data);
+
+        const [attendanceData, entriesData, membersData] = await Promise.all([
+          getAttendanceByTeamAndDateRange(selectedTeam, startDate, endDate),
+          getEntriesByTeam(selectedTeam, startDate, endDate),
+          getTeamMembers(selectedTeam, true),
+        ]);
+
+        if (cancelled) return;
+
+        setMembers(membersData);
+
+        const memberNameMap = new Map<string, string>();
+        for (const m of membersData) {
+          memberNameMap.set(m.id, m.name);
+        }
+
+        const historyMap = new Map<string, AttendanceRecord>();
+
+        // 1. Summary attendance collection records
+        for (const r of attendanceData) {
+          const mName = memberNameMap.get(r.memberId) || r.memberName || "Member";
+          historyMap.set(`${r.memberId}_${r.date}`, {
+            ...r,
+            memberName: mName,
+          });
+        }
+
+        // 2. Per-subject attendanceEntries records
+        const entriesByMemberDate = new Map<string, typeof entriesData>();
+        for (const e of entriesData) {
+          const key = `${e.memberId}_${e.date}`;
+          if (!entriesByMemberDate.has(key)) {
+            entriesByMemberDate.set(key, []);
+          }
+          entriesByMemberDate.get(key)!.push(e);
+        }
+
+        for (const [key, eList] of entriesByMemberDate.entries()) {
+          const [memberId, date] = key.split("_");
+          const mName = memberNameMap.get(memberId) || "Member";
+          const totalMissed = eList.reduce((acc, item) => acc + item.missed, 0);
+          const markedBy = eList[0]?.markedBy || "Admin";
+
+          if (!historyMap.has(key)) {
+            historyMap.set(key, {
+              id: eList[0].id,
+              teamId: selectedTeam,
+              memberId,
+              memberName: mName,
+              date,
+              lectureCount: eList.length,
+              lectures: eList.map((item) => item.missed > 0),
+              totalMissed,
+              markedBy,
+              updatedAt: eList[0].updatedAt || new Date(),
+            });
+          }
+        }
+
+        const consolidated = Array.from(historyMap.values());
+        setRecords(consolidated);
       } catch {
         if (!cancelled) toast.error("Failed to load attendance history");
       } finally {
@@ -132,7 +174,9 @@ function HistoryContent() {
     }
 
     fetchRecords();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedTeam, dateFrom, dateTo, refreshKey]);
 
   // Filter & sort
