@@ -6,7 +6,6 @@ import type { Team, Member, MemberFormData } from "@/types";
 import { getTeams, getTeamMembers, addMember, updateMember, toggleMemberActive, deleteMember } from "@/lib/actions/roster";
 import { AdminRoute } from "@/components/AdminRoute";
 import { MemberForm } from "@/components/roster/MemberForm";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -158,47 +157,56 @@ function RosterContent() {
             Manage committee members across all teams
           </p>
         </div>
+        <Button
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            setEditingMember(null);
+            setDialogOpen(true);
+          }}
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add Member
+        </Button>
       </div>
 
-      <Tabs value={selectedTeam} onValueChange={setSelectedTeam}>
-        <div className="neo-scroll-x -mx-4 px-4">
-          <TabsList className="inline-flex w-max">
+      {/* Team Tabs Strip */}
+      <div className="neo-raised p-2 rounded-xl">
+        <div className="neo-scroll-x">
+          <div className="neo-tabs inline-flex w-full sm:w-auto">
             {teams.map((team) => (
-              <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
+              <button
+                key={team.id}
+                type="button"
+                className={`neo-tab whitespace-nowrap text-xs sm:text-sm font-semibold transition-all ${
+                  selectedTeam === team.id ? "neo-tab-active font-bold" : ""
+                }`}
+                onClick={() => setSelectedTeam(team.id)}
+              >
                 {team.name}
-              </TabsTrigger>
+              </button>
             ))}
-          </TabsList>
+          </div>
         </div>
+      </div>
 
-        {teams.map((team) => (
-          <TabsContent key={team.id} value={team.id}>
-            <div className="rounded-lg border bg-card">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border-b">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">
-                    {filteredMembers.length} member{filteredMembers.length !== 1 ? "s" : ""}
-                  </span>
-                  <button
-                    onClick={() => setShowInactive(!showInactive)}
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
-                  >
-                    {showInactive ? "Hide inactive" : "Show inactive"}
-                  </button>
-                </div>
-                <Button
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onClick={() => {
-                    setEditingMember(null);
-                    setDialogOpen(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Member
-                </Button>
-              </div>
+      {/* Current Team Roster Card */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-600" />
+            <span className="text-sm font-semibold">
+              {currentTeam?.name || "Team"} Roster ({filteredMembers.length})
+            </span>
+            <span className="text-muted-foreground text-xs">•</span>
+            <button
+              onClick={() => setShowInactive(!showInactive)}
+              className="text-xs text-muted-foreground hover:text-foreground underline font-medium"
+            >
+              {showInactive ? "Hide inactive" : "Show inactive"}
+            </button>
+          </div>
+        </div>
 
               {membersLoading ? (
                 <div className="p-4 space-y-3">
@@ -384,9 +392,6 @@ function RosterContent() {
                 </div>
               )}
             </div>
-          </TabsContent>
-        ))}
-      </Tabs>
 
       {/* Add / Edit Dialog */}
       <Dialog
