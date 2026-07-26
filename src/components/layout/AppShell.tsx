@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -39,6 +39,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.classList.add("drawer-open");
+    } else {
+      document.body.classList.remove("drawer-open");
+    }
+    return () => document.body.classList.remove("drawer-open");
+  }, [sidebarOpen]);
+
   if (!user) return <>{children}</>;
 
   const isActive = (href: string) => {
@@ -47,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--neo-bg)" }}>
+    <div className="flex h-dvh overflow-hidden" style={{ background: "var(--neo-bg)" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -112,7 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 text-sm font-medium
+                    flex items-center gap-3 px-3 py-3.5 text-sm font-medium
                     transition-all duration-150
                     ${active ? "neo-raised" : ""}
                   `}
@@ -148,7 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       href={item.href}
                       onClick={() => setSidebarOpen(false)}
                       className={`
-                        flex items-center gap-3 px-3 py-2.5 text-sm font-medium
+                        flex items-center gap-3 px-3 py-3.5 text-sm font-medium
                         transition-all duration-150
                         ${active ? "neo-raised" : ""}
                       `}
@@ -232,6 +242,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <button
             onClick={() => setSidebarOpen(true)}
+            className="flex items-center justify-center h-10 w-10 rounded-xl"
             style={{ color: "var(--neo-text)" }}
           >
             <Menu className="h-5 w-5" />
@@ -250,12 +261,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               Attendance
             </span>
           </div>
-          <div className="w-5" />
+          <div className="w-10" />
         </header>
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto" style={{ background: "var(--neo-bg)" }}>
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>

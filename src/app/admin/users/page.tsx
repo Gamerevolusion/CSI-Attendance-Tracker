@@ -174,23 +174,24 @@ function AdminUsersContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-heading font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">
             Manage Users
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Control who can access the attendance tracker
           </p>
         </div>
-        <Button onClick={() => setAddDialogOpen(true)}>
+        <Button className="w-full sm:w-auto" onClick={() => setAddDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add User
         </Button>
       </div>
 
       <div className="rounded-lg border bg-card">
-        <div className="overflow-x-auto">
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -243,11 +244,54 @@ function AdminUsersContent() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Mobile cards */}
+        <div className="sm:hidden divide-y">
+          {users.map((u) => (
+            <div key={u.email} className="flex items-center gap-3 p-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm">{u.name}</span>
+                  {u.isAdmin ? (
+                    <Badge className="gap-1 text-[10px] px-1.5 py-0">
+                      <ShieldCheck className="h-2.5 w-2.5" />
+                      Admin
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
+                      <Shield className="h-2.5 w-2.5" />
+                      Member
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {u.email}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Switch
+                  checked={u.isAdmin}
+                  onCheckedChange={() => handleToggleAdmin(u)}
+                  disabled={u.email === user?.email}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() => setDeleteTarget(u)}
+                  disabled={u.email === user?.email}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Add User Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-lg sm:w-full">
           <DialogHeader>
             <DialogTitle>Add Authorized User</DialogTitle>
           </DialogHeader>

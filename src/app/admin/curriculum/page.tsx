@@ -245,10 +245,10 @@ function CurriculumContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">
+        <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">
           Curriculum Management
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Define subjects per Year + Department. These apply across all teams.
         </p>
       </div>
@@ -262,10 +262,10 @@ function CurriculumContent() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-48">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 min-w-0">
               <Select value={selected} onValueChange={(v) => v && setSelected(v)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-10 sm:h-8">
                   <SelectValue placeholder="Select a curriculum" />
                 </SelectTrigger>
                 <SelectContent>
@@ -277,15 +277,17 @@ function CurriculumContent() {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Curriculum
-            </Button>
-            {selected && (
-              <Button variant="destructive" size="icon" onClick={handleDeleteCurriculum}>
-                <Trash2 className="h-4 w-4" />
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 sm:flex-initial" onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Curriculum
               </Button>
-            )}
+              {selected && (
+                <Button variant="destructive" size="icon" onClick={handleDeleteCurriculum}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -294,12 +296,12 @@ function CurriculumContent() {
       {selected && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <CardTitle className="text-base">
                 Subjects — {curriculums.find((c) => c.id === selected)?.year}{" "}
                 {curriculums.find((c) => c.id === selected)?.department}
               </CardTitle>
-              <Button size="sm" onClick={openAddSubject}>
+              <Button size="sm" className="w-full sm:w-auto" onClick={openAddSubject}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Subject
               </Button>
@@ -338,40 +340,42 @@ function CurriculumContent() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <div className="hidden sm:flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleMove(index, "up")}
+                          disabled={index === 0}
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleMove(index, "down")}
+                          disabled={index === subjects.length - 1}
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Separator orientation="vertical" className="h-5" />
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleMove(index, "up")}
-                        disabled={index === 0}
-                      >
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleMove(index, "down")}
-                        disabled={index === subjects.length - 1}
-                      >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      </Button>
-                      <Separator orientation="vertical" className="h-5" />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
+                        className="h-8 w-8 sm:h-7 sm:w-7"
                         onClick={() => openEditSubject(subject)}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        className="h-8 w-8 sm:h-7 sm:w-7 text-destructive hover:text-destructive"
                         onClick={() => handleDeleteSubject(subject.id)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                       </Button>
                     </div>
                   </div>

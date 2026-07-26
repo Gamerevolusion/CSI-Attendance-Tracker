@@ -259,7 +259,7 @@ export function MemberAttendanceCard({
               No curriculum defined for {member.year} {member.department}
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-xl p-0.5" style={{ background: "var(--neo-bg)" }}>
+            <div className="neo-scroll-x rounded-xl p-0.5" style={{ background: "var(--neo-bg)" }}>
               <table className="neo-attendance-table" style={{ minWidth: dates.length * 52 + 130 }}>
                 <thead>
                   <tr>
@@ -328,7 +328,7 @@ export function MemberAttendanceCard({
                                 <div className="flex gap-0.5 items-center">
                                   <button
                                     type="button"
-                                    className="text-[11px] font-bold w-4 h-4 flex items-center justify-center rounded bg-black/5 dark:bg-white/10 opacity-75 hover:opacity-100 transition-opacity"
+                                    className="text-[12px] font-bold w-6 h-6 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/10 opacity-75 hover:opacity-100 active:opacity-100 transition-opacity"
                                     onClick={() =>
                                       updateMissedCount(
                                         subject.id,
@@ -341,7 +341,7 @@ export function MemberAttendanceCard({
                                   </button>
                                   <button
                                     type="button"
-                                    className="text-[11px] font-bold w-4 h-4 flex items-center justify-center rounded bg-black/5 dark:bg-white/10 opacity-75 hover:opacity-100 transition-opacity"
+                                    className="text-[12px] font-bold w-6 h-6 flex items-center justify-center rounded-lg bg-black/5 dark:bg-white/10 opacity-75 hover:opacity-100 active:opacity-100 transition-opacity"
                                     onClick={() =>
                                       updateMissedCount(
                                         subject.id,

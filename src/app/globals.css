@@ -529,3 +529,97 @@
   padding: 0.25rem 0;
 }
 .neo-card-header:hover { opacity: 0.9; }
+
+/* ============================================================
+   Mobile & Touch Utilities
+   ============================================================ */
+
+/* Fix for mobile Safari/Chrome viewport with dynamic toolbar */
+html, body {
+  min-height: 100dvh;
+}
+
+/* Touch active states — instant visual feedback on tap */
+@media (hover: none) and (pointer: coarse) {
+  .neo-btn:active {
+    box-shadow:
+      inset 2px 2px 4px var(--neo-shadow-dark),
+      inset -2px -2px 4px var(--neo-shadow-light);
+    transform: scale(0.97);
+  }
+  .neo-cell:active {
+    transform: scale(0.92);
+    transition: transform 0.08s ease;
+  }
+  .neo-tab:active {
+    opacity: 0.7;
+    transform: scale(0.96);
+  }
+  .neo-card:active {
+    box-shadow:
+      4px 4px 8px var(--neo-shadow-dark),
+      -4px -4px 8px var(--neo-shadow-light);
+  }
+}
+
+/* Prevent text selection / long-press popups on interactive elements */
+.neo-cell,
+.neo-tab,
+.neo-card-header {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Scrollbar hiding for horizontal scroll containers */
+.neo-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.neo-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile-first responsive utilities */
+@media (max-width: 640px) {
+  /* Stack flex containers vertically on mobile */
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .mobile-stack > * {
+    width: 100% !important;
+  }
+  
+  /* Full-width buttons on mobile */
+  .mobile-full {
+    width: 100% !important;
+  }
+
+  /* Larger tap targets on mobile */
+  .neo-cell {
+    width: 44px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+  }
+  .neo-tab {
+    padding: 10px 16px;
+    font-size: 0.8125rem;
+  }
+
+  /* Ensure min tap target sizes */
+  button, [role="button"] {
+    min-height: 36px;
+  }
+}
+
+/* Drawer body scroll lock */
+body.drawer-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}

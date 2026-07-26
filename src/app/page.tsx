@@ -181,17 +181,17 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-heading font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">
             Dashboard
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {formatDateDisplay(today)} · Committee Overview
           </p>
         </div>
         <Link href="/attendance/mark">
-          <Button>
+          <Button className="w-full sm:w-auto">
             <ClipboardCheck className="mr-2 h-4 w-4" />
             Mark Attendance
           </Button>
@@ -200,7 +200,7 @@ function DashboardContent() {
 
       {/* Team Tabs */}
       <Tabs value={selectedTeam} onValueChange={setSelectedTeam}>
-        <div className="overflow-x-auto -mx-4 px-4">
+        <div className="neo-scroll-x -mx-4 px-4">
           <TabsList className="inline-flex w-max">
             {teams.map((team) => (
               <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
@@ -212,22 +212,22 @@ function DashboardContent() {
       </Tabs>
 
       {/* Filter Mode & Date Selection Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-muted/40 p-3 rounded-lg border">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/40 p-3 rounded-lg border">
         <div className="flex items-center gap-2">
           <Tabs value={filterMode} onValueChange={(val) => setFilterMode(val as "date" | "range")} className="w-auto">
             <TabsList className="h-8">
               <TabsTrigger value="date" className="text-xs px-3 h-6">By Date</TabsTrigger>
-              <TabsTrigger value="range" className="text-xs px-3 h-6">By Month / Range</TabsTrigger>
+              <TabsTrigger value="range" className="text-xs px-3 h-6">Range</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {filterMode === "date" ? (
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground font-medium">Select Date:</Label>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Label className="text-xs text-muted-foreground font-medium shrink-0">Date:</Label>
               <Popover open={dateOpen} onOpenChange={setDateOpen}>
-                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-background px-2.5 h-8 text-xs font-medium hover:bg-muted w-36 justify-start text-left font-normal">
+                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-background px-2.5 h-9 sm:h-8 text-xs font-medium hover:bg-muted flex-1 sm:w-36 sm:flex-initial justify-start text-left font-normal">
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                   {format(selectedDate, "dd MMM yyyy")}
                 </PopoverTrigger>
@@ -241,10 +241,10 @@ function DashboardContent() {
               </Popover>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <Label className="text-xs text-muted-foreground font-medium">From:</Label>
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <Label className="text-xs text-muted-foreground font-medium shrink-0">From:</Label>
               <Popover open={fromOpen} onOpenChange={setFromOpen}>
-                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-background px-2.5 h-8 text-xs font-medium hover:bg-muted w-36 justify-start text-left font-normal">
+                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-background px-2.5 h-9 sm:h-8 text-xs font-medium hover:bg-muted flex-1 sm:w-36 sm:flex-initial justify-start text-left font-normal">
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                   {format(dateFrom, "dd MMM yyyy")}
                 </PopoverTrigger>
@@ -257,9 +257,9 @@ function DashboardContent() {
                 </PopoverContent>
               </Popover>
 
-              <Label className="text-xs text-muted-foreground font-medium ml-1">To:</Label>
+              <Label className="text-xs text-muted-foreground font-medium shrink-0">To:</Label>
               <Popover open={toOpen} onOpenChange={setToOpen}>
-                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-background px-2.5 h-8 text-xs font-medium hover:bg-muted w-36 justify-start text-left font-normal">
+                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-background px-2.5 h-9 sm:h-8 text-xs font-medium hover:bg-muted flex-1 sm:w-36 sm:flex-initial justify-start text-left font-normal">
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                   {format(dateTo, "dd MMM yyyy")}
                 </PopoverTrigger>

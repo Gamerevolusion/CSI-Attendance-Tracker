@@ -174,17 +174,17 @@ function HistoryContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">
+        <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">
           Attendance History
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           View and manage past attendance records
         </p>
       </div>
 
       {/* Team Tabs */}
       <Tabs value={selectedTeam} onValueChange={(v) => { setSelectedTeam(v); setSelectedMember("all"); }}>
-        <div className="overflow-x-auto -mx-4 px-4">
+        <div className="neo-scroll-x -mx-4 px-4">
           <TabsList className="inline-flex w-max">
             {teams.map((team) => (
               <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
@@ -196,45 +196,47 @@ function HistoryContent() {
       </Tabs>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="space-y-2">
-          <Label>From</Label>
-          <Popover open={fromOpen} onOpenChange={setFromOpen}>
-            <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted w-40 justify-start text-left font-normal">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(dateFrom, "dd MMM yyyy")}
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateFrom}
-                onSelect={(d) => { if (d) { setDateFrom(d); setFromOpen(false); } }}
-              />
-            </PopoverContent>
-          </Popover>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+        <div className="flex gap-3 w-full sm:w-auto">
+          <div className="flex-1 sm:flex-initial space-y-2">
+            <Label>From</Label>
+            <Popover open={fromOpen} onOpenChange={setFromOpen}>
+              <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-10 sm:h-8 text-sm font-medium hover:bg-muted w-full sm:w-40 justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(dateFrom, "dd MMM yyyy")}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={(d) => { if (d) { setDateFrom(d); setFromOpen(false); } }}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="flex-1 sm:flex-initial space-y-2">
+            <Label>To</Label>
+            <Popover open={toOpen} onOpenChange={setToOpen}>
+              <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-10 sm:h-8 text-sm font-medium hover:bg-muted w-full sm:w-40 justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(dateTo, "dd MMM yyyy")}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={(d) => { if (d) { setDateTo(d); setToOpen(false); } }}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>To</Label>
-          <Popover open={toOpen} onOpenChange={setToOpen}>
-            <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted w-40 justify-start text-left font-normal">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(dateTo, "dd MMM yyyy")}
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateTo}
-                onSelect={(d) => { if (d) { setDateTo(d); setToOpen(false); } }}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="space-y-2">
+        <div className="space-y-2 w-full sm:w-auto">
           <Label>Member</Label>
           <Select value={selectedMember} onValueChange={(val) => val && setSelectedMember(val)}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-full sm:w-44 h-10 sm:h-8">
               <SelectValue placeholder="All members" />
             </SelectTrigger>
             <SelectContent>
@@ -265,37 +267,78 @@ function HistoryContent() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <button
-                      className="flex items-center gap-1 hover:text-foreground"
-                      onClick={() => setSortAsc(!sortAsc)}
-                    >
-                      Date
-                      <ArrowUpDown className="h-3.5 w-3.5" />
-                    </button>
-                  </TableHead>
-                  <TableHead>Member</TableHead>
-                  <TableHead className="text-center">Lectures Missed</TableHead>
-                  <TableHead>Marked By</TableHead>
-                  {isAdmin && (
-                    <TableHead className="text-right">Actions</TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="font-medium">
-                      {formatDateDisplay(record.date)}
-                    </TableCell>
-                    <TableCell>{record.memberName}</TableCell>
-                    <TableCell className="text-center">
+          <div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <button
+                        className="flex items-center gap-1 hover:text-foreground"
+                        onClick={() => setSortAsc(!sortAsc)}
+                      >
+                        Date
+                        <ArrowUpDown className="h-3.5 w-3.5" />
+                      </button>
+                    </TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead className="text-center">Lectures Missed</TableHead>
+                    <TableHead>Marked By</TableHead>
+                    {isAdmin && (
+                      <TableHead className="text-right">Actions</TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium">
+                        {formatDateDisplay(record.date)}
+                      </TableCell>
+                      <TableCell>{record.memberName}</TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`inline-flex items-center justify-center min-w-8 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            record.totalMissed === 0
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : record.totalMissed >= 3
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                          }`}
+                        >
+                          {record.totalMissed} / {record.lectureCount}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {record.markedBy}
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(record)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y">
+              {filtered.map((record) => (
+                <div key={record.id} className="flex items-center gap-3 p-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{record.memberName}</span>
                       <span
-                        className={`inline-flex items-center justify-center min-w-8 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center justify-center min-w-6 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
                           record.totalMissed === 0
                             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                             : record.totalMissed >= 3
@@ -303,27 +346,26 @@ function HistoryContent() {
                             : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                         }`}
                       >
-                        {record.totalMissed} / {record.lectureCount}
+                        {record.totalMissed}/{record.lectureCount}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {record.markedBy}
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteTarget(record)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatDateDisplay(record.date)} · by {record.markedBy}
+                    </p>
+                  </div>
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-9 p-0 shrink-0"
+                      onClick={() => setDeleteTarget(record)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

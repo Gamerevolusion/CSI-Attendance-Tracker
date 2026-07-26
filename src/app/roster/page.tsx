@@ -130,19 +130,19 @@ function RosterContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-heading font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">
             Team Roster
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Manage committee members across all teams
           </p>
         </div>
       </div>
 
       <Tabs value={selectedTeam} onValueChange={setSelectedTeam}>
-        <div className="overflow-x-auto -mx-4 px-4">
+        <div className="neo-scroll-x -mx-4 px-4">
           <TabsList className="inline-flex w-max">
             {teams.map((team) => (
               <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
@@ -155,7 +155,7 @@ function RosterContent() {
         {teams.map((team) => (
           <TabsContent key={team.id} value={team.id}>
             <div className="rounded-lg border bg-card">
-              <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border-b">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">
@@ -170,6 +170,7 @@ function RosterContent() {
                 </div>
                 <Button
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     setEditingMember(null);
                     setDialogOpen(true);
@@ -206,82 +207,140 @@ function RosterContent() {
                   </Button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        {currentTeam?.hasRoleField && (
-                          <TableHead>Role</TableHead>
-                        )}
-                        <TableHead>Year</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredMembers.map((member) => (
-                        <TableRow
-                          key={member.id}
-                          className={
-                            member.active === false ? "opacity-50" : ""
-                          }
-                        >
-                          <TableCell className="font-medium">
-                            {member.name}
-                          </TableCell>
+                <div>
+                  {/* Desktop table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
                           {currentTeam?.hasRoleField && (
-                            <TableCell>
-                              {member.role || (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
+                            <TableHead>Role</TableHead>
                           )}
-                          <TableCell>{member.year}</TableCell>
-                          <TableCell>{member.department}</TableCell>
-                          <TableCell>
+                          <TableHead>Year</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredMembers.map((member) => (
+                          <TableRow
+                            key={member.id}
+                            className={
+                              member.active === false ? "opacity-50" : ""
+                            }
+                          >
+                            <TableCell className="font-medium">
+                              {member.name}
+                            </TableCell>
+                            {currentTeam?.hasRoleField && (
+                              <TableCell>
+                                {member.role || (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                            )}
+                            <TableCell>{member.year}</TableCell>
+                            <TableCell>{member.department}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  member.active !== false
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {member.active !== false
+                                  ? "Active"
+                                  : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingMember(member);
+                                    setDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleActive(member)}
+                                >
+                                  {member.active !== false ? (
+                                    <UserX className="h-3.5 w-3.5 text-destructive" />
+                                  ) : (
+                                    <UserCheck className="h-3.5 w-3.5 text-green-600" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Mobile cards */}
+                  <div className="sm:hidden divide-y">
+                    {filteredMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className={`flex items-center gap-3 p-3 ${
+                          member.active === false ? "opacity-50" : ""
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">{member.name}</span>
                             <Badge
                               variant={
-                                member.active !== false
-                                  ? "default"
-                                  : "secondary"
+                                member.active !== false ? "default" : "secondary"
                               }
+                              className="text-[10px] px-1.5 py-0"
                             >
-                              {member.active !== false
-                                ? "Active"
-                                : "Inactive"}
+                              {member.active !== false ? "Active" : "Inactive"}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingMember(member);
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleToggleActive(member)}
-                              >
-                                {member.active !== false ? (
-                                  <UserX className="h-3.5 w-3.5 text-destructive" />
-                                ) : (
-                                  <UserCheck className="h-3.5 w-3.5 text-green-600" />
-                                )}
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {member.year} · {member.department}
+                            {currentTeam?.hasRoleField && member.role ? ` · ${member.role}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 p-0"
+                            onClick={() => {
+                              setEditingMember(member);
+                              setDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 p-0"
+                            onClick={() => handleToggleActive(member)}
+                          >
+                            {member.active !== false ? (
+                              <UserX className="h-4 w-4 text-destructive" />
+                            ) : (
+                              <UserCheck className="h-4 w-4 text-green-600" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -297,7 +356,7 @@ function RosterContent() {
           if (!open) setEditingMember(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-lg sm:w-full">
           <DialogHeader>
             <DialogTitle>
               {editingMember ? "Edit Member" : "Add Member"}

@@ -160,30 +160,29 @@ function MarkAttendanceContent() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
         <div>
           <h1
-            className="text-2xl font-bold tracking-tight"
+            className="text-xl sm:text-2xl font-bold tracking-tight"
             style={{ fontFamily: "var(--font-heading, inherit)" }}
           >
             Mark Attendance
           </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--neo-text-muted)" }}>
+          <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--neo-text-muted)" }}>
             Per-subject attendance tracking for team members
           </p>
         </div>
 
         {/* Controls */}
-        <div className="neo-raised p-5 space-y-4">
+        <div className="neo-raised p-3 sm:p-5 space-y-3 sm:space-y-4">
           {/* Team tabs */}
-          <div className="overflow-x-auto -mx-1 px-1">
+          <div className="neo-scroll-x -mx-1 px-1">
             <div className="neo-tabs">
               {teams.map((team) => (
                 <button
                   key={team.id}
                   type="button"
-                  className={`neo-tab ${
+                  className={`neo-tab whitespace-nowrap ${
                     selectedTeam === team.id ? "neo-tab-active" : ""
                   }`}
                   onClick={() => handleTeamChange(team.id)}
@@ -195,53 +194,55 @@ function MarkAttendanceContent() {
           </div>
 
           {/* Date range */}
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: "var(--neo-text-muted)" }}>
-                From
-              </label>
-              <Popover open={fromOpen} onOpenChange={setFromOpen}>
-                <PopoverTrigger className="neo-btn flex items-center gap-2 px-3 py-2 text-sm">
-                  <CalendarIcon className="h-4 w-4 opacity-60" />
-                  {format(dateFrom, "dd MMM yyyy")}
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateFrom}
-                    onSelect={(d) => {
-                      if (d) {
-                        setDateFrom(d);
-                        setFromOpen(false);
-                      }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+            <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex-1 sm:flex-initial space-y-1">
+                <label className="text-xs font-medium" style={{ color: "var(--neo-text-muted)" }}>
+                  From
+                </label>
+                <Popover open={fromOpen} onOpenChange={setFromOpen}>
+                  <PopoverTrigger className="neo-btn flex items-center gap-2 px-3 py-2.5 text-sm w-full sm:w-auto">
+                    <CalendarIcon className="h-4 w-4 opacity-60" />
+                    {format(dateFrom, "dd MMM yyyy")}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={(d) => {
+                        if (d) {
+                          setDateFrom(d);
+                          setFromOpen(false);
+                        }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: "var(--neo-text-muted)" }}>
-                To
-              </label>
-              <Popover open={toOpen} onOpenChange={setToOpen}>
-                <PopoverTrigger className="neo-btn flex items-center gap-2 px-3 py-2 text-sm">
-                  <CalendarIcon className="h-4 w-4 opacity-60" />
-                  {format(dateTo, "dd MMM yyyy")}
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateTo}
-                    onSelect={(d) => {
-                      if (d) {
-                        setDateTo(d);
-                        setToOpen(false);
-                      }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex-1 sm:flex-initial space-y-1">
+                <label className="text-xs font-medium" style={{ color: "var(--neo-text-muted)" }}>
+                  To
+                </label>
+                <Popover open={toOpen} onOpenChange={setToOpen}>
+                  <PopoverTrigger className="neo-btn flex items-center gap-2 px-3 py-2.5 text-sm w-full sm:w-auto">
+                    <CalendarIcon className="h-4 w-4 opacity-60" />
+                    {format(dateTo, "dd MMM yyyy")}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={(d) => {
+                        if (d) {
+                          setDateTo(d);
+                          setToOpen(false);
+                        }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             <div className="text-xs" style={{ color: "var(--neo-text-muted)" }}>

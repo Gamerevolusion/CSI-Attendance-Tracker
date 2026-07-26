@@ -386,10 +386,10 @@ function ReportsContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">
+        <h1 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">
           Reports
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Generate per-subject attendance reports and export as PDF
         </p>
       </div>
@@ -402,19 +402,19 @@ function ReportsContent() {
           {/* Team Selection */}
           <div className="space-y-3">
             <Label>Select Teams</Label>
-            <div className="flex flex-wrap gap-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]">
                 <Checkbox
                   checked={selectedTeamIds.size === teams.length}
                   onCheckedChange={toggleAll}
                 />
                 <span className="font-medium">All Teams</span>
               </label>
-              <div className="w-px h-5 bg-border self-center" />
+              <div className="hidden sm:block w-px h-5 bg-border self-center" />
               {teams.map((team) => (
                 <label
                   key={team.id}
-                  className="flex items-center gap-2 text-sm cursor-pointer"
+                  className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]"
                 >
                   <Checkbox
                     checked={selectedTeamIds.has(team.id)}
@@ -427,49 +427,51 @@ function ReportsContent() {
           </div>
 
           {/* Date Range */}
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-2">
-              <Label>From</Label>
-              <Popover open={fromOpen} onOpenChange={setFromOpen}>
-                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted w-40 justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(dateFrom, "dd MMM yyyy")}
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateFrom}
-                    onSelect={(d) => {
-                      if (d) { setDateFrom(d); setFromOpen(false); }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+            <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex-1 sm:flex-initial space-y-2">
+                <Label>From</Label>
+                <Popover open={fromOpen} onOpenChange={setFromOpen}>
+                  <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-10 sm:h-8 text-sm font-medium hover:bg-muted w-full sm:w-40 justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(dateFrom, "dd MMM yyyy")}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={(d) => {
+                        if (d) { setDateFrom(d); setFromOpen(false); }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            <div className="space-y-2">
-              <Label>To</Label>
-              <Popover open={toOpen} onOpenChange={setToOpen}>
-                <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted w-40 justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(dateTo, "dd MMM yyyy")}
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateTo}
-                    onSelect={(d) => {
-                      if (d) { setDateTo(d); setToOpen(false); }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex-1 sm:flex-initial space-y-2">
+                <Label>To</Label>
+                <Popover open={toOpen} onOpenChange={setToOpen}>
+                  <PopoverTrigger className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-10 sm:h-8 text-sm font-medium hover:bg-muted w-full sm:w-40 justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(dateTo, "dd MMM yyyy")}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={(d) => {
+                        if (d) { setDateTo(d); setToOpen(false); }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={handlePreview} disabled={previewing}>
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={handlePreview} disabled={previewing}>
               {previewing ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -477,7 +479,7 @@ function ReportsContent() {
               )}
               Preview
             </Button>
-            <Button onClick={handleDownload} disabled={downloading}>
+            <Button className="w-full sm:w-auto" onClick={handleDownload} disabled={downloading}>
               {downloading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
