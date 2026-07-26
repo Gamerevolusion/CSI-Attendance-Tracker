@@ -18,6 +18,7 @@ import {
   LogOut,
   ChevronRight,
   BookOpen,
+  HelpCircle,
 } from "lucide-react";
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/attendance/mark", label: "Mark Attendance", icon: ClipboardCheck },
   { href: "/attendance/history", label: "History", icon: History },
   { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/help", label: "Help & Guide", icon: HelpCircle },
   { href: "/profile", label: "My Profile", icon: User },
 ];
 
