@@ -13,7 +13,6 @@ import {
   dateToISTString,
 } from "@/lib/date-utils";
 import type { Team, Member, AttendanceRecord } from "@/types";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -136,10 +135,8 @@ function HistoryContent() {
     return () => { cancelled = true; };
   }, [selectedTeam, dateFrom, dateTo, refreshKey]);
 
-  // Filter & sort (exclude deleted members)
-  const validMemberIds = new Set(members.map((m) => m.id));
-  let filtered = records.filter((r) => validMemberIds.has(r.memberId));
-
+  // Filter & sort
+  let filtered = records;
   if (selectedMember !== "all") {
     filtered = filtered.filter((r) => r.memberId === selectedMember);
   }
@@ -184,18 +181,28 @@ function HistoryContent() {
         </p>
       </div>
 
-      {/* Team Tabs */}
-      <Tabs value={selectedTeam} onValueChange={(v) => { setSelectedTeam(v); setSelectedMember("all"); }}>
-        <div className="neo-scroll-x -mx-4 px-4">
-          <TabsList className="inline-flex w-max">
-            {teams.map((team) => (
-              <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
-                {team.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      {/* Team Tabs Strip */}
+      <div className="neo-pressed p-1.5 rounded-2xl">
+        <div className="neo-scroll-x flex gap-1.5 p-1">
+          {teams.map((team) => (
+            <button
+              key={team.id}
+              type="button"
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap font-medium transition-all duration-150 shrink-0 ${
+                selectedTeam === team.id
+                  ? "neo-raised font-bold text-foreground"
+                  : "text-muted-foreground hover:text-foreground opacity-80"
+              }`}
+              onClick={() => {
+                setSelectedTeam(team.id);
+                setSelectedMember("all");
+              }}
+            >
+              {team.name}
+            </button>
+          ))}
         </div>
-      </Tabs>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
