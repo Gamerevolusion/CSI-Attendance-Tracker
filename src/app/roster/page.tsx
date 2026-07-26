@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 
 import type { Team, Member, MemberFormData } from "@/types";
-import { getTeams, getTeamMembers, addMember, updateMember, toggleMemberActive } from "@/lib/actions/roster";
+import { getTeams, getTeamMembers, addMember, updateMember, toggleMemberActive, deleteMember } from "@/lib/actions/roster";
 import { AdminRoute } from "@/components/AdminRoute";
 import { MemberForm } from "@/components/roster/MemberForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,8 +23,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, UserX, UserCheck, Users } from "lucide-react";
+import { Plus, Pencil, UserX, UserCheck, Users, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 function RosterContent() {
@@ -36,6 +37,8 @@ function RosterContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Load teams
   useEffect(() => {
@@ -115,6 +118,22 @@ function RosterContent() {
       setMembers(m);
     } catch {
       toast.error("Failed to update member status");
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteMember(selectedTeam, deleteTarget.id);
+      toast.success(`${deleteTarget.name} deleted`);
+      setDeleteTarget(null);
+      const m = await getTeamMembers(selectedTeam, true);
+      setMembers(m);
+    } catch {
+      toast.error("Failed to delete member");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -261,6 +280,7 @@ function RosterContent() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  title="Edit member"
                                   onClick={() => {
                                     setEditingMember(member);
                                     setDialogOpen(true);
@@ -271,13 +291,22 @@ function RosterContent() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  title={member.active !== false ? "Deactivate member" : "Reactivate member"}
                                   onClick={() => handleToggleActive(member)}
                                 >
                                   {member.active !== false ? (
-                                    <UserX className="h-3.5 w-3.5 text-destructive" />
+                                    <UserX className="h-3.5 w-3.5 text-amber-600" />
                                   ) : (
                                     <UserCheck className="h-3.5 w-3.5 text-green-600" />
                                   )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Delete member"
+                                  onClick={() => setDeleteTarget(member)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -318,6 +347,7 @@ function RosterContent() {
                             variant="ghost"
                             size="sm"
                             className="h-9 w-9 p-0"
+                            title="Edit"
                             onClick={() => {
                               setEditingMember(member);
                               setDialogOpen(true);
@@ -329,13 +359,23 @@ function RosterContent() {
                             variant="ghost"
                             size="sm"
                             className="h-9 w-9 p-0"
+                            title={member.active !== false ? "Deactivate" : "Reactivate"}
                             onClick={() => handleToggleActive(member)}
                           >
                             {member.active !== false ? (
-                              <UserX className="h-4 w-4 text-destructive" />
+                              <UserX className="h-4 w-4 text-amber-600" />
                             ) : (
                               <UserCheck className="h-4 w-4 text-green-600" />
                             )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 p-0"
+                            title="Delete"
+                            onClick={() => setDeleteTarget(member)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </div>
@@ -380,6 +420,38 @@ function RosterContent() {
               setEditingMember(null);
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Member Confirmation Dialog */}
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <DialogContent className="w-[95vw] max-w-lg sm:w-full">
+          <DialogHeader>
+            <DialogTitle>Delete Member</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Permanently delete <strong>{deleteTarget?.name}</strong> from{" "}
+            <strong>{currentTeam?.name}</strong>? This will also clean up their attendance history and cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMember}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -136,8 +136,10 @@ function HistoryContent() {
     return () => { cancelled = true; };
   }, [selectedTeam, dateFrom, dateTo, refreshKey]);
 
-  // Filter & sort
-  let filtered = records;
+  // Filter & sort (exclude deleted members)
+  const validMemberIds = new Set(members.map((m) => m.id));
+  let filtered = records.filter((r) => validMemberIds.has(r.memberId));
+
   if (selectedMember !== "all") {
     filtered = filtered.filter((r) => r.memberId === selectedMember);
   }

@@ -4,7 +4,10 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
+  writeBatch,
   query,
+  where,
   orderBy,
   getDoc,
 } from "firebase/firestore";
@@ -84,4 +87,41 @@ export async function toggleMemberActive(
 ): Promise<void> {
   const docRef = doc(db, "teams", teamId, "members", memberId);
   await updateDoc(docRef, { active });
+}
+
+export async function deleteMember(
+  teamId: string,
+  memberId: string
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  // 1. Delete member document
+  const memberRef = doc(db, "teams", teamId, "members", memberId);
+  batch.delete(memberRef);
+
+  // 2. Delete all attendanceEntries for this member
+  try {
+    const entriesQ = query(
+      collection(db, "attendanceEntries"),
+      where("memberId", "==", memberId)
+    );
+    const entriesSnap = await getDocs(entriesQ);
+    entriesSnap.docs.forEach((d) => batch.delete(d.ref));
+  } catch (err) {
+    console.error("Error finding member entries to delete:", err);
+  }
+
+  // 3. Delete all attendance summary records for this member
+  try {
+    const attendanceQ = query(
+      collection(db, "attendance"),
+      where("memberId", "==", memberId)
+    );
+    const attendanceSnap = await getDocs(attendanceQ);
+    attendanceSnap.docs.forEach((d) => batch.delete(d.ref));
+  } catch (err) {
+    console.error("Error finding member attendance records to delete:", err);
+  }
+
+  await batch.commit();
 }
