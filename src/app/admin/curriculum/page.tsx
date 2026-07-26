@@ -46,8 +46,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const YEARS = ["FY", "SY", "TY", "BE"];
-const DEPARTMENTS = ["CS", "IT", "DS", "AIML", "AIDS", "EXTC", "MECH", "CIVIL", "ELEX"];
+const YEARS = ["FY", "SY", "TY"];
+const DEPARTMENTS = ["CS", "IT", "DS"];
 
 function CurriculumContent() {
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);

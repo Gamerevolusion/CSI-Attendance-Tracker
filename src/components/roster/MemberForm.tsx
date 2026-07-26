@@ -20,7 +20,8 @@ interface MemberFormProps {
   onCancel: () => void;
 }
 
-const YEAR_OPTIONS = ["FY", "SY", "TY", "BE"];
+const YEAR_OPTIONS = ["FY", "SY", "TY"];
+const DEPT_OPTIONS = ["CS", "IT", "DS"];
 
 export function MemberForm({
   hasRoleField,
@@ -95,13 +96,18 @@ export function MemberForm({
 
         <div className="space-y-2">
           <Label htmlFor="member-department">Department *</Label>
-          <Input
-            id="member-department"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            placeholder="e.g., CS, IT"
-            required
-          />
+          <Select value={department} onValueChange={(val) => val && setDepartment(val)} required>
+            <SelectTrigger id="member-department">
+              <SelectValue placeholder="Select department" />
+            </SelectTrigger>
+            <SelectContent>
+              {DEPT_OPTIONS.map((d) => (
+                <SelectItem key={d} value={d}>
+                  {d}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
