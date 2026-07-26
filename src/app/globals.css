@@ -572,7 +572,7 @@ html, body {
   touch-action: manipulation;
 }
 
-/* Scrollbar hiding for horizontal scroll containers */
+/* Scrollbar hiding for specific horizontal scroll containers */
 .neo-scroll-x {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -581,6 +581,46 @@ html, body {
 }
 .neo-scroll-x::-webkit-scrollbar {
   display: none;
+}
+
+/* ============================================================
+   Custom Modern Sleek Neomorphic Scrollbar
+   ============================================================ */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--neo-shadow-dark) transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge, Opera) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neo-shadow-dark);
+  border-radius: 9999px;
+  min-height: 24px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neo-text-muted);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Mobile-first responsive utilities */
