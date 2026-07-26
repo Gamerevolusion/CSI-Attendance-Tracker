@@ -66,9 +66,9 @@ export default function LoginPage() {
       />
 
       <div className="relative z-10 w-full max-w-5xl">
-        {/* Main Grid Card Container */}
+        {/* Main Grid Card Container with Pop-Up Expand Animation */}
         <div
-          className="neo-card p-6 sm:p-8 lg:p-12 border-0"
+          className="neo-card animate-neo-pop p-6 sm:p-8 lg:p-12 border-0"
           style={{
             boxShadow:
               "16px 16px 32px var(--neo-shadow-dark), -16px -16px 32px var(--neo-shadow-light)",
@@ -79,7 +79,7 @@ export default function LoginPage() {
             {/* Left Column: Branding & Feature Highlights */}
             <div className="lg:col-span-7 space-y-6">
               {/* Header Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full neo-pressed text-xs font-semibold tracking-wide">
+              <div className="animate-fade-up delay-100 inline-flex items-center gap-2 px-3 py-1.5 rounded-full neo-pressed text-xs font-semibold tracking-wide">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
                 <span style={{ color: "var(--neo-text-muted)" }}>
                   CSI STUDENT CHAPTER
@@ -89,7 +89,7 @@ export default function LoginPage() {
               </div>
 
               {/* Main Headline */}
-              <div className="space-y-3">
+              <div className="animate-fade-up delay-200 space-y-3">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight font-heading leading-tight">
                   Smart Committee <br className="hidden sm:block" />
                   <span className="bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
@@ -105,8 +105,8 @@ export default function LoginPage() {
               </div>
 
               {/* Feature Cards Showcase */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="neo-pressed p-3.5 rounded-xl space-y-1">
+              <div className="animate-fade-up delay-300 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="neo-pressed p-3.5 rounded-xl space-y-1 transition-transform duration-200 hover:-translate-y-0.5">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-blue-600 shrink-0" />
                     <span className="font-semibold text-xs">Per-Subject Marking</span>
@@ -119,7 +119,7 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <div className="neo-pressed p-3.5 rounded-xl space-y-1">
+                <div className="neo-pressed p-3.5 rounded-xl space-y-1 transition-transform duration-200 hover:-translate-y-0.5">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span className="font-semibold text-xs">Instant PDF Reports</span>
@@ -132,7 +132,7 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <div className="neo-pressed p-3.5 rounded-xl space-y-1">
+                <div className="neo-pressed p-3.5 rounded-xl space-y-1 transition-transform duration-200 hover:-translate-y-0.5">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-purple-600 shrink-0" />
                     <span className="font-semibold text-xs">Multi-Team Roster</span>
@@ -145,7 +145,7 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <div className="neo-pressed p-3.5 rounded-xl space-y-1">
+                <div className="neo-pressed p-3.5 rounded-xl space-y-1 transition-transform duration-200 hover:-translate-y-0.5">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0" />
                     <span className="font-semibold text-xs">Secure Role Access</span>
@@ -160,7 +160,7 @@ export default function LoginPage() {
               </div>
 
               {/* Status footer list */}
-              <div className="flex flex-wrap items-center gap-4 pt-2 text-xs opacity-75">
+              <div className="animate-fade-up delay-400 flex flex-wrap items-center gap-4 pt-2 text-xs opacity-75">
                 <span className="flex items-center gap-1.5 font-medium">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                   100% Digital Workflow
@@ -173,9 +173,9 @@ export default function LoginPage() {
             </div>
 
             {/* Right Column: Sign In Card */}
-            <div className="lg:col-span-5">
+            <div className="lg:col-span-5 animate-fade-up delay-200">
               <div
-                className="neo-raised p-6 sm:p-8 rounded-2xl space-y-6 text-center"
+                className="neo-raised p-6 sm:p-8 rounded-2xl space-y-6 text-center transition-all duration-300 hover:shadow-lg"
                 style={{ borderRadius: 24 }}
               >
                 {/* Logo Badge */}

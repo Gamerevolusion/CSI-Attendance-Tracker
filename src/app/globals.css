@@ -624,7 +624,7 @@ body.drawer-open {
   width: 100%;
 }
 
-/* Login Page Ambient Animations */
+/* Login Page Ambient Animations & Pop-up Expand */
 @keyframes float-slow {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
@@ -635,6 +635,32 @@ body.drawer-open {
   50% { opacity: 0.6; transform: scale(1.08); }
 }
 
+@keyframes neo-pop-expand {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(36px);
+  }
+  65% {
+    opacity: 0.95;
+    transform: scale(1.02) translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes neo-fade-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-float-slow {
   animation: float-slow 6s ease-in-out infinite;
 }
@@ -642,3 +668,18 @@ body.drawer-open {
 .animate-pulse-subtle {
   animation: pulse-subtle 4s ease-in-out infinite;
 }
+
+.animate-neo-pop {
+  animation: neo-pop-expand 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-up {
+  opacity: 0;
+  animation: neo-fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
