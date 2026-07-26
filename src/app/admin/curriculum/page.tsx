@@ -47,7 +47,7 @@ import {
 import { toast } from "sonner";
 
 const YEARS = ["FY", "SY", "TY"];
-const DEPARTMENTS = ["CS", "IT", "DS"];
+const DEPARTMENTS = ["CS", "IT", "DS", "BCA"];
 
 function CurriculumContent() {
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);

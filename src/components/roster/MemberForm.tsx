@@ -21,7 +21,7 @@ interface MemberFormProps {
 }
 
 const YEAR_OPTIONS = ["FY", "SY", "TY"];
-const DEPT_OPTIONS = ["CS", "IT", "DS"];
+const DEPT_OPTIONS = ["CS", "IT", "DS", "BCA"];
 
 export function MemberForm({
   hasRoleField,

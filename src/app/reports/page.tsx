@@ -292,102 +292,220 @@ function ReportsContent() {
           })
         );
 
-        // Render PDF header for team
+        // Render Top Brand Banner Bar (Navy #1a2b4c)
+        doc.setFillColor(26, 43, 76);
+        doc.rect(0, 0, 210, 18, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(255, 255, 255);
+        doc.text("COMPUTER SOCIETY OF INDIA", 14, 11);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(203, 213, 225);
+        doc.text("STUDENT CHAPTER · ATTENDANCE MANAGEMENT PORTAL", 80, 11);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(56, 189, 248);
+        doc.text("OFFICIAL FACULTY REPORT", 196, 11, { align: "right" });
+
+        // Title Block
+        let currentY = 26;
         if (logoBase64) {
-          doc.addImage(logoBase64, "PNG", 14, 12, 14, 14);
+          doc.addImage(logoBase64, "PNG", 14, 23, 14, 14);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(16);
-          doc.setTextColor(45, 55, 72);
-          doc.text("CSI Attendance Report", 32, 20);
+          doc.setTextColor(30, 41, 59);
+          doc.text("Committee Attendance Summary", 32, 31);
 
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          doc.setTextColor(100, 110, 125);
-          doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 32, 26);
+          doc.setFontSize(9.5);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 32, 37);
         } else {
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(18);
-          doc.setTextColor(45, 55, 72);
-          doc.text("CSI Attendance Report", 14, 20);
+          doc.setFontSize(16);
+          doc.setTextColor(30, 41, 59);
+          doc.text("Committee Attendance Summary", 14, 31);
 
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(11);
-          doc.setTextColor(100, 110, 125);
-          doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 14, 28);
+          doc.setFontSize(9.5);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Team: ${team.name}   |   Period: ${startDate} to ${endDate}`, 14, 37);
         }
 
-        const startY = 35;
+        currentY = 44;
 
         if (rows.length === 0) {
-          doc.setFontSize(12);
-          doc.text("No member data recorded in this range.", 14, startY);
+          doc.setFontSize(11);
+          doc.setTextColor(100, 116, 139);
+          doc.text("No member attendance data recorded for this team in the selected date range.", 14, currentY + 6);
           continue;
         }
 
+        // Summary Statistics Highlight Box
+        const totalMembers = rows.length;
+        const totalMissedCount = rows.reduce((acc, r) => acc + r.totalMissed, 0);
+        const perfectAttendanceCount = rows.filter((r) => r.totalMissed === 0).length;
+
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(14, currentY, 182, 16, 3, 3, "FD");
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(100, 116, 139);
+
+        // Stat 1: Members
+        doc.text("Total Members:", 18, currentY + 7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.text(String(totalMembers), 43, currentY + 7);
+
+        // Stat 2: Missed Count
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 116, 139);
+        doc.text("Total Missed Lectures:", 62, currentY + 7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(totalMissedCount > 0 ? 185 : 21, totalMissedCount > 0 ? 28 : 128, totalMissedCount > 0 ? 28 : 61);
+        doc.text(String(totalMissedCount), 98, currentY + 7);
+
+        // Stat 3: Perfect Attendance
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 116, 139);
+        doc.text("Perfect Attendance:", 118, currentY + 7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(21, 128, 61);
+        doc.text(`${perfectAttendanceCount} member(s)`, 148, currentY + 7);
+
+        // Date note inside summary box
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`, 18, currentY + 12.5);
+
+        currentY += 22;
+
+        // Primary Attendance Table
         autoTable(doc, {
-          startY: startY,
-          head: [["Name", "Year / Dept", "Role", "Sessions", "Total Missed"]],
+          startY: currentY,
+          head: [["Member Name", "Year / Dept", "Role", "Sessions", "Missed Lectures", "Status"]],
           body: rows.map((r) => [
             r.memberName,
-            `${r.year} - ${r.department}`,
+            `${r.year} · ${r.department}`,
             r.role || "Member",
             String(r.sessionsRecorded),
-            `${r.totalMissed} lecture(s)`,
+            r.totalMissed === 0 ? "0" : `${r.totalMissed} lecture(s)`,
+            r.totalMissed === 0 ? "Perfect" : "Partially Absent",
           ]),
-          styles: { fontSize: 10, cellPadding: 4, textColor: [45, 55, 72] },
-          headStyles: { fillColor: [74, 85, 104], textColor: 255, fontStyle: "bold" },
+          theme: "striped",
+          headStyles: {
+            fillColor: [26, 43, 76],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+            fontSize: 9,
+            cellPadding: 3.5,
+          },
+          bodyStyles: {
+            fontSize: 8.5,
+            cellPadding: 3,
+            textColor: [30, 41, 59],
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252],
+          },
           columnStyles: {
-            4: { fontStyle: "bold", halign: "right" },
+            0: { fontStyle: "bold", cellWidth: 45 },
+            1: { cellWidth: 32 },
+            2: { cellWidth: 32 },
+            3: { halign: "center", cellWidth: 20 },
+            4: { fontStyle: "bold", halign: "right", cellWidth: 28 },
+            5: { fontStyle: "bold", halign: "center", cellWidth: 25 },
+          },
+          didParseCell: (data) => {
+            if (data.section === "body") {
+              if (data.column.index === 4 || data.column.index === 5) {
+                const rawRow = data.row.raw as any;
+                const isPerfect = Array.isArray(rawRow) ? String(rawRow[4] || "").startsWith("0") : false;
+                if (isPerfect) {
+                  data.cell.styles.textColor = [21, 128, 61];
+                } else {
+                  data.cell.styles.textColor = [185, 28, 28];
+                }
+              }
+            }
           },
         });
 
+        // Subject Breakdown Section
         const missedRows: any[] = [];
         rows.forEach((r) => {
           if ((r.subjectBreakdown?.length ?? 0) > 0 && r.totalMissed > 0) {
             missedRows.push([
               {
-                content: `${r.memberName} (${r.year}-${r.department}) — ${r.totalMissed} total missed`,
+                content: `${r.memberName} (${r.year} · ${r.department}) — Total ${r.totalMissed} Missed Lecture(s)`,
                 colSpan: 3,
-                styles: { fontStyle: "bold", fillColor: [238, 242, 246], textColor: [45, 55, 72] },
+                styles: {
+                  fontStyle: "bold",
+                  fillColor: [241, 245, 249],
+                  textColor: [30, 41, 59],
+                  fontSize: 8.5,
+                },
               },
             ]);
             r.subjectBreakdown?.forEach((sub) => {
               if (sub.missed > 0) {
-                missedRows.push([`   ${sub.subjectName}`, sub.facultyName || "—", `${sub.missed} period(s)`]);
+                missedRows.push([`   ${sub.subjectName}`, sub.facultyName || "—", `${sub.missed} lecture(s)`]);
               }
             });
           }
         });
 
         if (missedRows.length > 0) {
-          const previousTableY = (doc as any).lastAutoTable?.finalY || startY;
+          const previousTableY = (doc as any).lastAutoTable?.finalY || currentY;
+
+          // Section title with colored accent bar
+          doc.setFillColor(15, 118, 110);
+          doc.rect(14, previousTableY + 8, 3, 6, "F");
+
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(13);
-          doc.setTextColor(45, 55, 72);
-          doc.text("Subject Breakdown of Missed Lectures", 14, previousTableY + 14);
+          doc.setFontSize(11);
+          doc.setTextColor(30, 41, 59);
+          doc.text("Subject Breakdown of Missed Lectures", 20, previousTableY + 13);
 
           autoTable(doc, {
-            startY: previousTableY + 18,
-            head: [["Subject", "Faculty", "Missed Count"]],
+            startY: previousTableY + 16,
+            head: [["Subject Name", "Assigned Faculty", "Missed Lectures"]],
             body: missedRows,
-            styles: { fontSize: 9, cellPadding: 3, textColor: [45, 55, 72] },
-            headStyles: { fillColor: [113, 128, 150], textColor: 255 },
+            theme: "plain",
+            styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [51, 65, 85] },
+            headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
             columnStyles: {
-              2: { halign: "right", fontStyle: "bold" },
+              0: { cellWidth: 90 },
+              1: { cellWidth: 60 },
+              2: { halign: "right", fontStyle: "bold", textColor: [185, 28, 28] },
             },
           });
         }
       }
 
-      // Footer page numbers and timestamp
+      // Footer page numbers and timestamp on every page
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
+
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.line(14, 283, 196, 283);
+
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text("CSI Committee Attendance Report", 14, doc.internal.pageSize.height - 10);
-        doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width - 28, doc.internal.pageSize.height - 10);
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text("Computer Society of India · Student Chapter Attendance Portal", 14, 288);
+        doc.text(`Page ${i} of ${totalPages}`, 196, 288, { align: "right" });
       }
 
       doc.save(`attendance-report_${dateToISTString(dateFrom)}_${dateToISTString(dateTo)}.pdf`);

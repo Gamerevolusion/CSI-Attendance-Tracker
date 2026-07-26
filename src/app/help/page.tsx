@@ -48,7 +48,7 @@ function HelpContent() {
     {
       question: "How does the per-subject attendance tracking work?",
       answer:
-        "Curriculums are configured per Year (FY, SY, TY) and Department (CS, IT, DS). When marking attendance for a team member, the system displays their exact subjects (Lectures & Practicals). Members can be marked Present, Missed (with lecture count 0–4), or No Class.",
+        "Curriculums are configured per Year (FY, SY, TY) and Department (CS, IT, DS, BCA). When marking attendance for a team member, the system displays their exact subjects (Lectures & Practicals). Members can be marked Present, Missed (with lecture count 0–4), or No Class.",
     },
     {
       question: "Who can access and mark attendance in the portal?",
@@ -397,7 +397,7 @@ function HelpContent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-xs" style={{ color: "var(--neo-text-muted)" }}>
-              <p>• Add members with specific Year (FY, SY, TY) and Department (CS, IT, DS).</p>
+              <p>• Add members with specific Year (FY, SY, TY) and Department (CS, IT, DS, BCA).</p>
               <p>• Deactivate inactive members without deleting past records.</p>
               <p>• Permanently delete members with automated historical record cleanup.</p>
             </CardContent>
