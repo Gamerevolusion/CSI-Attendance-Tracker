@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
-import { getAttendanceByTeamAndDateRange } from "@/lib/actions/attendance";
+import { getEntriesByTeam } from "@/lib/actions/attendanceEntries";
+import { getCurriculums, getSubjects } from "@/lib/actions/curriculum";
 import { dateToISTString } from "@/lib/date-utils";
-import type { Team, ReportSummaryRow } from "@/types";
+import type { Team, ReportSummaryRow, Subject } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -59,11 +60,24 @@ function ReportsContent() {
     Map<string, { teamName: string; rows: ReportSummaryRow[] }>
   >(new Map());
 
+  // Subject lookup
+  const [subjectMap, setSubjectMap] = useState<Record<string, Subject>>({});
+
   useEffect(() => {
     async function load() {
       try {
-        const t = await getTeams();
+        const [t, curriculums] = await Promise.all([getTeams(), getCurriculums()]);
         setTeams(t);
+
+        // Build subject map for display
+        const sMap: Record<string, Subject> = {};
+        for (const curr of curriculums) {
+          const subjects = await getSubjects(curr.id);
+          for (const sub of subjects) {
+            sMap[sub.id] = sub;
+          }
+        }
+        setSubjectMap(sMap);
       } catch {
         toast.error("Failed to load teams");
       } finally {
@@ -112,15 +126,18 @@ function ReportsContent() {
         const team = teams.find((t) => t.id === teamId);
         if (!team) continue;
 
-        const [members, records] = await Promise.all([
+        const [members, entries] = await Promise.all([
           getTeamMembers(teamId, true),
-          getAttendanceByTeamAndDateRange(teamId, startDate, endDate),
+          getEntriesByTeam(teamId, startDate, endDate),
         ]);
 
-        // Build summary per member
+        // Build summary per member with subject breakdown
         const memberMap = new Map<
           string,
-          ReportSummaryRow & { dates: Set<string> }
+          ReportSummaryRow & {
+            dates: Set<string>;
+            subjectMissed: Record<string, number>;
+          }
         >();
 
         for (const m of members) {
@@ -133,21 +150,34 @@ function ReportsContent() {
             totalMissed: 0,
             sessionsRecorded: 0,
             dates: new Set(),
+            subjectMissed: {},
           });
         }
 
-        for (const record of records) {
-          const entry = memberMap.get(record.memberId);
-          if (entry) {
-            entry.totalMissed += record.totalMissed;
-            entry.dates.add(record.date);
+        for (const entry of entries) {
+          const member = memberMap.get(entry.memberId);
+          if (member) {
+            member.totalMissed += entry.missed;
+            member.dates.add(entry.date);
+
+            if (!member.subjectMissed[entry.subjectId]) {
+              member.subjectMissed[entry.subjectId] = 0;
+            }
+            member.subjectMissed[entry.subjectId] += entry.missed;
           }
         }
 
-        const rows = Array.from(memberMap.values()).map(
-          ({ dates, ...rest }) => ({
+        const rows: ReportSummaryRow[] = Array.from(memberMap.values()).map(
+          ({ dates, subjectMissed, ...rest }) => ({
             ...rest,
             sessionsRecorded: dates.size,
+            subjectBreakdown: Object.entries(subjectMissed).map(
+              ([subId, missed]) => ({
+                subjectName: subjectMap[subId]?.subjectName || subId,
+                facultyName: subjectMap[subId]?.facultyName || "—",
+                missed,
+              })
+            ),
           })
         );
 
@@ -227,7 +257,7 @@ function ReportsContent() {
           Reports
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Generate attendance reports and export as PDF
+          Generate per-subject attendance reports and export as PDF
         </p>
       </div>
 
@@ -326,7 +356,7 @@ function ReportsContent() {
         </CardContent>
       </Card>
 
-      {/* Preview Tables */}
+      {/* Preview Tables with subject breakdown */}
       {previewData.size > 0 && (
         <div className="space-y-6">
           {Array.from(previewData.entries()).map(
@@ -344,55 +374,58 @@ function ReportsContent() {
                       No data in this range
                     </p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            {rows.some((r) => r.role) && (
-                              <TableHead>Role</TableHead>
-                            )}
-                            <TableHead>Year</TableHead>
-                            <TableHead>Department</TableHead>
-                            <TableHead className="text-center">
-                              Total Missed
-                            </TableHead>
-                            <TableHead className="text-center">
-                              Sessions
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {rows.map((row) => (
-                            <TableRow key={row.memberId}>
-                              <TableCell className="font-medium">
-                                {row.memberName}
-                              </TableCell>
-                              {rows.some((r) => r.role) && (
-                                <TableCell>
-                                  {row.role || "—"}
-                                </TableCell>
-                              )}
-                              <TableCell>{row.year}</TableCell>
-                              <TableCell>{row.department}</TableCell>
-                              <TableCell className="text-center">
-                                <span
-                                  className={`inline-flex items-center justify-center min-w-8 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    row.totalMissed === 0
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-red-100 text-red-700"
-                                  }`}
-                                >
-                                  {row.totalMissed}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {row.sessionsRecorded}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                    <div className="space-y-4">
+                      {rows.map((row) => (
+                        <div key={row.memberId} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <span className="font-medium text-sm">{row.memberName}</span>
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {row.year} · {row.department}
+                                {row.role && ` · ${row.role}`}
+                              </span>
+                            </div>
+                            <span
+                              className={`inline-flex items-center justify-center min-w-8 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                row.totalMissed === 0
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {row.totalMissed} total missed
+                            </span>
+                          </div>
+
+                          {row.subjectBreakdown && row.subjectBreakdown.length > 0 ? (
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">Subject</TableHead>
+                                    <TableHead className="text-xs">Faculty</TableHead>
+                                    <TableHead className="text-xs text-center">Missed</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {row.subjectBreakdown.map((sub, i) => (
+                                    <TableRow key={i}>
+                                      <TableCell className="text-xs">{sub.subjectName}</TableCell>
+                                      <TableCell className="text-xs text-muted-foreground">{sub.facultyName}</TableCell>
+                                      <TableCell className="text-xs text-center font-semibold">
+                                        {sub.missed}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              {row.sessionsRecorded} day{row.sessionsRecorded !== 1 ? "s" : ""} recorded
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </CardContent>

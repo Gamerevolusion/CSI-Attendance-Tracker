@@ -4,9 +4,30 @@ import React from "react";
 
 export const dynamic = "force-dynamic";
 
-// Use dynamic import for @react-pdf/renderer to avoid SSR issues
+interface SubjectBreakdownRow {
+  subjectName: string;
+  facultyName: string;
+  missed: number;
+}
+
+interface MemberRow {
+  name: string;
+  role: string | null;
+  year: string;
+  department: string;
+  totalMissed: number;
+  sessionsRecorded: number;
+  subjectBreakdown: SubjectBreakdownRow[];
+}
+
+interface TeamData {
+  name: string;
+  hasRoleField: boolean;
+  rows: MemberRow[];
+}
+
 async function generatePDF(data: {
-  teams: { name: string; hasRoleField: boolean; rows: { name: string; role: string | null; year: string; department: string; totalMissed: number; sessionsRecorded: number }[] }[];
+  teams: TeamData[];
   startDate: string;
   endDate: string;
   generatedAt: string;
@@ -14,69 +35,27 @@ async function generatePDF(data: {
   const { Document, Page, Text, View, StyleSheet, renderToBuffer } = await import("@react-pdf/renderer");
 
   const styles = StyleSheet.create({
-    page: {
-      padding: 40,
-      fontSize: 10,
-      fontFamily: "Helvetica",
-    },
-    header: {
-      marginBottom: 20,
-    },
-    title: {
-      fontSize: 18,
-      fontFamily: "Helvetica-Bold",
-      marginBottom: 4,
-    },
-    subtitle: {
-      fontSize: 11,
-      color: "#666666",
-      marginBottom: 2,
-    },
-    meta: {
-      fontSize: 8,
-      color: "#999999",
-      marginBottom: 16,
-    },
-    teamTitle: {
-      fontSize: 14,
-      fontFamily: "Helvetica-Bold",
-      marginBottom: 10,
-      marginTop: 4,
-      color: "#333333",
-    },
-    table: {
-      width: "100%",
-    },
-    tableHeader: {
-      flexDirection: "row" as const,
-      backgroundColor: "#f0f0f0",
-      borderBottomWidth: 1,
-      borderColor: "#cccccc",
-      paddingVertical: 6,
-      paddingHorizontal: 4,
-    },
-    tableRow: {
-      flexDirection: "row" as const,
-      borderBottomWidth: 0.5,
-      borderColor: "#e0e0e0",
-      paddingVertical: 5,
-      paddingHorizontal: 4,
-    },
-    tableRowAlt: {
-      flexDirection: "row" as const,
-      borderBottomWidth: 0.5,
-      borderColor: "#e0e0e0",
-      paddingVertical: 5,
-      paddingHorizontal: 4,
-      backgroundColor: "#fafafa",
-    },
-    colName: { width: "25%", fontFamily: "Helvetica-Bold", fontSize: 9 },
-    colRole: { width: "15%", fontSize: 9 },
-    colYear: { width: "10%", fontSize: 9, textAlign: "center" as const },
-    colDept: { width: "15%", fontSize: 9 },
-    colMissed: { width: "18%", fontSize: 9, textAlign: "center" as const },
-    colSessions: { width: "17%", fontSize: 9, textAlign: "center" as const },
+    page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
+    header: { marginBottom: 20 },
+    title: { fontSize: 18, fontFamily: "Helvetica-Bold", marginBottom: 4 },
+    subtitle: { fontSize: 11, color: "#666666", marginBottom: 2 },
+    meta: { fontSize: 8, color: "#999999", marginBottom: 16 },
+    teamTitle: { fontSize: 14, fontFamily: "Helvetica-Bold", marginBottom: 10, marginTop: 4, color: "#333333" },
+    memberHeader: { flexDirection: "row" as const, justifyContent: "space-between" as const, marginBottom: 6, paddingBottom: 4, borderBottomWidth: 1, borderColor: "#e0e0e0" },
+    memberName: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+    memberMeta: { fontSize: 9, color: "#666666" },
+    totalBadge: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#e53e3e" },
+    totalBadgeGood: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#38a169" },
+    subjectTable: { width: "100%", marginBottom: 12 },
+    subjectHeader: { flexDirection: "row" as const, backgroundColor: "#f5f5f5", borderBottomWidth: 1, borderColor: "#cccccc", paddingVertical: 4, paddingHorizontal: 4 },
+    subjectRow: { flexDirection: "row" as const, borderBottomWidth: 0.5, borderColor: "#e0e0e0", paddingVertical: 3, paddingHorizontal: 4 },
+    subjectRowAlt: { flexDirection: "row" as const, borderBottomWidth: 0.5, borderColor: "#e0e0e0", paddingVertical: 3, paddingHorizontal: 4, backgroundColor: "#fafafa" },
+    colSubject: { width: "35%", fontSize: 9 },
+    colFaculty: { width: "40%", fontSize: 9, color: "#666666" },
+    colMissed: { width: "25%", fontSize: 9, textAlign: "center" as const, fontFamily: "Helvetica-Bold" },
     headerText: { fontFamily: "Helvetica-Bold", fontSize: 9 },
+    memberBlock: { marginBottom: 16 },
+    noData: { textAlign: "center" as const, color: "#999999", paddingVertical: 20, fontSize: 11 },
     footer: {
       position: "absolute" as const,
       bottom: 20,
@@ -86,12 +65,6 @@ async function generatePDF(data: {
       color: "#999999",
       flexDirection: "row" as const,
       justifyContent: "space-between" as const,
-    },
-    noData: {
-      textAlign: "center" as const,
-      color: "#999999",
-      paddingVertical: 20,
-      fontSize: 11,
     },
   });
 
@@ -107,102 +80,66 @@ async function generatePDF(data: {
           View,
           { style: styles.header },
           React.createElement(Text, { style: styles.title }, "CSI Attendance Report"),
-          React.createElement(
-            Text,
-            { style: styles.subtitle },
-            `${data.startDate} to ${data.endDate}`
-          ),
-          React.createElement(
-            Text,
-            { style: styles.meta },
-            `Generated: ${data.generatedAt}`
-          )
+          React.createElement(Text, { style: styles.subtitle }, `${data.startDate} to ${data.endDate}`),
+          React.createElement(Text, { style: styles.meta }, `Generated: ${data.generatedAt}`)
         ),
         // Team title
         React.createElement(Text, { style: styles.teamTitle }, team.name),
-        // Table
+        // Members
         team.rows.length === 0
-          ? React.createElement(
-              Text,
-              { style: styles.noData },
-              "No attendance data in this range"
-            )
+          ? React.createElement(Text, { style: styles.noData }, "No attendance data in this range")
           : React.createElement(
               View,
-              { style: styles.table },
-              // Header row
-              React.createElement(
-                View,
-                { style: styles.tableHeader },
-                React.createElement(
-                  Text,
-                  { style: { ...styles.colName, ...styles.headerText } },
-                  "Name"
-                ),
-                team.hasRoleField
-                  ? React.createElement(
-                      Text,
-                      { style: { ...styles.colRole, ...styles.headerText } },
-                      "Role"
-                    )
-                  : null,
-                React.createElement(
-                  Text,
-                  { style: { ...styles.colYear, ...styles.headerText } },
-                  "Year"
-                ),
-                React.createElement(
-                  Text,
-                  { style: { ...styles.colDept, ...styles.headerText } },
-                  "Department"
-                ),
-                React.createElement(
-                  Text,
-                  { style: { ...styles.colMissed, ...styles.headerText } },
-                  "Total Missed"
-                ),
-                React.createElement(
-                  Text,
-                  { style: { ...styles.colSessions, ...styles.headerText } },
-                  "Sessions"
-                )
-              ),
-              // Data rows
+              null,
               ...team.rows.map((row, rowIndex) =>
                 React.createElement(
                   View,
-                  {
-                    key: rowIndex,
-                    style: rowIndex % 2 === 0 ? styles.tableRow : styles.tableRowAlt,
-                  },
-                  React.createElement(Text, { style: styles.colName }, row.name),
-                  team.hasRoleField
-                    ? React.createElement(
+                  { key: rowIndex, style: styles.memberBlock, wrap: false },
+                  // Member header
+                  React.createElement(
+                    View,
+                    { style: styles.memberHeader },
+                    React.createElement(
+                      View,
+                      null,
+                      React.createElement(Text, { style: styles.memberName }, row.name),
+                      React.createElement(
                         Text,
-                        { style: styles.colRole },
-                        row.role || "—"
+                        { style: styles.memberMeta },
+                        `${row.year} · ${row.department}${row.role ? ` · ${row.role}` : ""} · ${row.sessionsRecorded} day(s) recorded`
                       )
-                    : null,
-                  React.createElement(
-                    Text,
-                    { style: styles.colYear },
-                    row.year
+                    ),
+                    React.createElement(
+                      Text,
+                      { style: row.totalMissed === 0 ? styles.totalBadgeGood : styles.totalBadge },
+                      `${row.totalMissed} missed`
+                    )
                   ),
-                  React.createElement(
-                    Text,
-                    { style: styles.colDept },
-                    row.department
-                  ),
-                  React.createElement(
-                    Text,
-                    { style: styles.colMissed },
-                    String(row.totalMissed)
-                  ),
-                  React.createElement(
-                    Text,
-                    { style: styles.colSessions },
-                    String(row.sessionsRecorded)
-                  )
+                  // Subject breakdown table
+                  row.subjectBreakdown.length > 0
+                    ? React.createElement(
+                        View,
+                        { style: styles.subjectTable },
+                        // Header
+                        React.createElement(
+                          View,
+                          { style: styles.subjectHeader },
+                          React.createElement(Text, { style: { ...styles.colSubject, ...styles.headerText } }, "Subject"),
+                          React.createElement(Text, { style: { ...styles.colFaculty, ...styles.headerText } }, "Faculty"),
+                          React.createElement(Text, { style: { ...styles.colMissed, ...styles.headerText } }, "Missed")
+                        ),
+                        // Rows
+                        ...row.subjectBreakdown.map((sub, si) =>
+                          React.createElement(
+                            View,
+                            { key: si, style: si % 2 === 0 ? styles.subjectRow : styles.subjectRowAlt },
+                            React.createElement(Text, { style: styles.colSubject }, sub.subjectName),
+                            React.createElement(Text, { style: styles.colFaculty }, sub.facultyName),
+                            React.createElement(Text, { style: styles.colMissed }, String(sub.missed))
+                          )
+                        )
+                      )
+                    : null
                 )
               )
             ),
@@ -261,26 +198,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const adminDb = getAdminDb();
+
+    // Build subject lookup from curriculum collection
+    const subjectLookup = new Map<string, { subjectName: string; facultyName: string }>();
+    const curriculumSnapshot = await adminDb.collection("curriculum").get();
+    for (const currDoc of curriculumSnapshot.docs) {
+      const subjectsSnapshot = await adminDb
+        .collection("curriculum")
+        .doc(currDoc.id)
+        .collection("subjects")
+        .get();
+      for (const subDoc of subjectsSnapshot.docs) {
+        const subData = subDoc.data();
+        subjectLookup.set(subDoc.id, {
+          subjectName: subData.subjectName || subDoc.id,
+          facultyName: subData.facultyName || "—",
+        });
+      }
+    }
+
     // Fetch data for all requested teams
-    const teamsData = [];
+    const teamsData: TeamData[] = [];
 
     for (const teamId of teamIds) {
-      const teamDoc = await getAdminDb().collection("teams").doc(teamId).get();
+      const teamDoc = await adminDb.collection("teams").doc(teamId).get();
       if (!teamDoc.exists) continue;
 
       const team = teamDoc.data()!;
 
       // Get members
-      const membersSnapshot = await getAdminDb()
+      const membersSnapshot = await adminDb
         .collection("teams")
         .doc(teamId)
         .collection("members")
         .orderBy("name")
         .get();
 
-      // Get attendance
-      const attendanceSnapshot = await getAdminDb()
-        .collection("attendance")
+      // Get attendance entries (new system)
+      const entriesSnapshot = await adminDb
+        .collection("attendanceEntries")
         .where("teamId", "==", teamId)
         .where("date", ">=", startDate)
         .where("date", "<=", endDate)
@@ -296,6 +253,7 @@ export async function POST(request: NextRequest) {
           department: string;
           totalMissed: number;
           dates: Set<string>;
+          subjectMissed: Record<string, number>;
         }
       >();
 
@@ -308,22 +266,34 @@ export async function POST(request: NextRequest) {
           department: m.department,
           totalMissed: 0,
           dates: new Set(),
+          subjectMissed: {},
         });
       }
 
-      for (const doc of attendanceSnapshot.docs) {
-        const record = doc.data();
-        const entry = memberMap.get(record.memberId);
-        if (entry) {
-          entry.totalMissed += record.totalMissed;
-          entry.dates.add(record.date);
+      for (const doc of entriesSnapshot.docs) {
+        const entry = doc.data();
+        const member = memberMap.get(entry.memberId);
+        if (member) {
+          member.totalMissed += entry.missed || 0;
+          member.dates.add(entry.date);
+          if (!member.subjectMissed[entry.subjectId]) {
+            member.subjectMissed[entry.subjectId] = 0;
+          }
+          member.subjectMissed[entry.subjectId] += entry.missed || 0;
         }
       }
 
-      const rows = Array.from(memberMap.values()).map(
-        ({ dates, ...rest }) => ({
+      const rows: MemberRow[] = Array.from(memberMap.values()).map(
+        ({ dates, subjectMissed, ...rest }) => ({
           ...rest,
           sessionsRecorded: dates.size,
+          subjectBreakdown: Object.entries(subjectMissed).map(
+            ([subId, missed]) => ({
+              subjectName: subjectLookup.get(subId)?.subjectName || subId,
+              facultyName: subjectLookup.get(subId)?.facultyName || "—",
+              missed,
+            })
+          ),
         })
       );
 

@@ -17,6 +17,7 @@ import {
   X,
   LogOut,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 
 const navItems = [
@@ -29,6 +30,7 @@ const navItems = [
 
 const adminNavItems = [
   { href: "/roster", label: "Roster", icon: Users },
+  { href: "/admin/curriculum", label: "Curriculum", icon: BookOpen },
   { href: "/admin/users", label: "Manage Users", icon: UserCog },
 ];
 

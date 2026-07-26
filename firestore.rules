@@ -28,8 +28,26 @@ service cloud.firestore {
       }
     }
 
-    // Attendance: read/write by any authorized user
+    // Attendance (old L1–L6): read-only for historical records
     match /attendance/{attendanceId} {
+      allow read: if isAuthorized();
+      allow create, update: if isAuthorized();
+      allow delete: if isAdmin();
+    }
+
+    // Curriculum: read by any authorized user, write only by admins
+    match /curriculum/{yearDeptId} {
+      allow read: if isAuthorized();
+      allow create, update, delete: if isAdmin();
+
+      match /subjects/{subjectId} {
+        allow read: if isAuthorized();
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    // Attendance Entries (new per-subject): read/write by any authorized user
+    match /attendanceEntries/{entryId} {
       allow read: if isAuthorized();
       allow create, update: if isAuthorized();
       allow delete: if isAdmin();

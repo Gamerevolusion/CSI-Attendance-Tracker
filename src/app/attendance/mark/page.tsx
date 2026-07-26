@@ -1,30 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import "./neomorphism.css";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
-import {
-  saveAttendance,
-  getAttendanceByTeamAndDate,
-} from "@/lib/actions/attendance";
-import { formatDateDisplay, dateToISTString } from "@/lib/date-utils";
-import type { Team, Member, AttendanceRow } from "@/types";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { getCurriculums, getSubjects } from "@/lib/actions/curriculum";
+import { getEntriesByTeam } from "@/lib/actions/attendanceEntries";
+import { dateToISTString } from "@/lib/date-utils";
+import type { Team, Member, Subject, Curriculum, AttendanceEntry } from "@/types";
+import { MemberAttendanceCard } from "@/components/attendance/MemberAttendanceCard";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { AttendanceGrid } from "@/components/attendance/AttendanceGrid";
-import { CalendarIcon, Save, Loader2, AlertCircle } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, eachDayOfInterval, startOfMonth, endOfMonth } from "date-fns";
 
 const LAST_TEAM_KEY = "csi-last-team";
 
@@ -32,24 +26,52 @@ function MarkAttendanceContent() {
   const { user } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [lectureCount, setLectureCount] = useState(6);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [membersLoading, setMembersLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [existingData, setExistingData] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
 
-  const dateStr = dateToISTString(selectedDate);
+  // Date range — default to current month
+  const [dateFrom, setDateFrom] = useState<Date>(() => startOfMonth(new Date()));
+  const [dateTo, setDateTo] = useState<Date>(() => {
+    const today = new Date();
+    return today < endOfMonth(today) ? today : endOfMonth(today);
+  });
+  const [fromOpen, setFromOpen] = useState(false);
+  const [toOpen, setToOpen] = useState(false);
+
+  // Data
+  const [members, setMembers] = useState<Member[]>([]);
+  const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
+  const [subjectsByCurriculum, setSubjectsByCurriculum] = useState<
+    Record<string, Subject[]>
+  >({});
+  const [entries, setEntries] = useState<AttendanceEntry[]>([]);
+
+  // Compute date strings
+  const dates = useMemo(() => {
+    try {
+      return eachDayOfInterval({ start: dateFrom, end: dateTo }).map((d) =>
+        dateToISTString(d)
+      );
+    } catch {
+      return [];
+    }
+  }, [dateFrom, dateTo]);
 
   // Load teams
   useEffect(() => {
     async function load() {
       try {
-        const t = await getTeams();
+        const [t, c] = await Promise.all([getTeams(), getCurriculums()]);
         setTeams(t);
+        setCurriculums(c);
+
+        // Preload subjects for all curriculums
+        const subMap: Record<string, Subject[]> = {};
+        for (const curr of c) {
+          subMap[curr.id] = await getSubjects(curr.id);
+        }
+        setSubjectsByCurriculum(subMap);
+
         const lastTeam = localStorage.getItem(LAST_TEAM_KEY);
         if (lastTeam && t.some((team) => team.id === lastTeam)) {
           setSelectedTeam(lastTeam);
@@ -57,7 +79,7 @@ function MarkAttendanceContent() {
           setSelectedTeam(t[0].id);
         }
       } catch {
-        toast.error("Failed to load teams");
+        toast.error("Failed to load data");
       } finally {
         setLoading(false);
       }
@@ -65,273 +87,193 @@ function MarkAttendanceContent() {
     load();
   }, []);
 
-  // Load members + existing attendance when team or date changes
+  // Load members + entries when team or date range changes
   useEffect(() => {
-    if (!selectedTeam) return;
+    if (!selectedTeam || dates.length === 0) return;
     let cancelled = false;
 
     async function fetchData() {
-      setMembersLoading(true);
+      setDataLoading(true);
       try {
-        const [teamMembers, existing] = await Promise.all([
+        const startDate = dates[0];
+        const endDate = dates[dates.length - 1];
+        const [teamMembers, teamEntries] = await Promise.all([
           getTeamMembers(selectedTeam),
-          getAttendanceByTeamAndDate(selectedTeam, dateStr),
+          getEntriesByTeam(selectedTeam, startDate, endDate),
         ]);
 
         if (cancelled) return;
-
         setMembers(teamMembers);
-
-        // Build rows — merge with existing attendance data if any
-        const existingMap = new Map(
-          existing.map((r) => [r.memberId, r])
-        );
-
-        const hasExisting = existing.length > 0;
-        setExistingData(hasExisting);
-
-        // If existing data has a different lecture count, use it
-        if (hasExisting && existing[0]?.lectureCount) {
-          setLectureCount(existing[0].lectureCount);
-        }
-
-        const currentLectureCount = hasExisting && existing[0]?.lectureCount
-          ? existing[0].lectureCount
-          : lectureCount;
-
-        const newRows: AttendanceRow[] = teamMembers.map((member) => {
-          const existingRecord = existingMap.get(member.id);
-          if (existingRecord) {
-            // Resize lectures array if lecture count changed
-            const lectures = [...existingRecord.lectures];
-            while (lectures.length < currentLectureCount) lectures.push(false);
-            return {
-              memberId: member.id,
-              memberName: member.name,
-              lectures: lectures.slice(0, currentLectureCount),
-              totalMissed: lectures.slice(0, currentLectureCount).filter(Boolean).length,
-            };
-          }
-          return {
-            memberId: member.id,
-            memberName: member.name,
-            lectures: new Array(currentLectureCount).fill(false),
-            totalMissed: 0,
-          };
-        });
-
-        setRows(newRows);
+        setEntries(teamEntries);
       } catch {
         if (!cancelled) toast.error("Failed to load attendance data");
       } finally {
-        if (!cancelled) setMembersLoading(false);
+        if (!cancelled) setDataLoading(false);
       }
     }
 
     fetchData();
-    return () => { cancelled = true; };
-  }, [selectedTeam, dateStr, lectureCount]);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTeam, dates]);
 
-  // Handle team change
   const handleTeamChange = (teamId: string) => {
     setSelectedTeam(teamId);
     localStorage.setItem(LAST_TEAM_KEY, teamId);
   };
 
-  // Handle lecture count change
-  const handleLectureCountChange = (count: number) => {
-    const clamped = Math.max(1, Math.min(10, count));
-    setLectureCount(clamped);
-
-    // Resize all rows
-    setRows((prev) =>
-      prev.map((row) => {
-        const lectures = [...row.lectures];
-        while (lectures.length < clamped) lectures.push(false);
-        const sliced = lectures.slice(0, clamped);
-        return {
-          ...row,
-          lectures: sliced,
-          totalMissed: sliced.filter(Boolean).length,
-        };
-      })
-    );
+  // Get subjects for a member based on their year + department
+  const getSubjectsForMember = (member: Member): Subject[] => {
+    const currId = `${member.year}_${member.department}`;
+    return subjectsByCurriculum[currId] || [];
   };
 
-  // Handle checkbox toggle
-  const handleToggle = (memberIndex: number, lectureIndex: number) => {
-    setRows((prev) => {
-      const newRows = [...prev];
-      const row = { ...newRows[memberIndex] };
-      const lectures = [...row.lectures];
-      lectures[lectureIndex] = !lectures[lectureIndex];
-      row.lectures = lectures;
-      row.totalMissed = lectures.filter(Boolean).length;
-      newRows[memberIndex] = row;
-      return newRows;
-    });
+  // Get entries for a specific member
+  const getEntriesForMember = (memberId: string): AttendanceEntry[] => {
+    return entries.filter((e) => e.memberId === memberId);
   };
-
-  // Save attendance
-  const handleSave = async () => {
-    if (!user?.email) return;
-
-    setSaving(true);
-    try {
-      await saveAttendance(
-        selectedTeam,
-        dateStr,
-        lectureCount,
-        rows,
-        user.email
-      );
-      setExistingData(true);
-      toast.success(
-        `Attendance ${existingData ? "updated" : "saved"} for ${formatDateDisplay(dateStr)}`
-      );
-    } catch {
-      toast.error("Failed to save attendance");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const currentTeam = teams.find((t) => t.id === selectedTeam);
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-96 w-full" />
+      <div className="neo-surface p-6">
+        <div className="space-y-4 max-w-3xl mx-auto">
+          <div className="neo-raised p-6 animate-pulse">
+            <div className="h-6 w-48 rounded bg-current opacity-10" />
+            <div className="h-4 w-64 rounded bg-current opacity-5 mt-2" />
+          </div>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="neo-card animate-pulse">
+              <div className="h-5 w-40 rounded bg-current opacity-10" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">
-          Mark Attendance
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Record lecture attendance for team members
-        </p>
-      </div>
+    <div className="neo-surface -mx-4 -mt-6 px-4 pt-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 pb-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Header */}
+        <div>
+          <h1
+            className="text-2xl font-bold tracking-tight"
+            style={{ fontFamily: "var(--font-heading, inherit)" }}
+          >
+            Mark Attendance
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--neo-text-muted)" }}>
+            Per-subject attendance tracking for team members
+          </p>
+        </div>
 
-      {/* Controls */}
-      <div className="space-y-4">
-        {/* Team Tabs */}
-        <Tabs value={selectedTeam} onValueChange={handleTeamChange}>
-          <div className="overflow-x-auto -mx-4 px-4">
-            <TabsList className="inline-flex w-max">
+        {/* Controls */}
+        <div className="neo-raised p-5 space-y-4">
+          {/* Team tabs */}
+          <div className="overflow-x-auto -mx-1 px-1">
+            <div className="neo-tabs">
               {teams.map((team) => (
-                <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
+                <button
+                  key={team.id}
+                  type="button"
+                  className={`neo-tab ${
+                    selectedTeam === team.id ? "neo-tab-active" : ""
+                  }`}
+                  onClick={() => handleTeamChange(team.id)}
+                >
                   {team.name}
-                </TabsTrigger>
+                </button>
               ))}
-            </TabsList>
-          </div>
-        </Tabs>
-
-        {/* Date + Lecture Count */}
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger
-                className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted w-48 justify-start text-left font-normal"
-              >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(selectedDate, "dd MMM yyyy")}
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => {
-                    if (date) {
-                      setSelectedDate(date);
-                      setCalendarOpen(false);
-                    }
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="lecture-count">Lectures</Label>
-            <Input
-              id="lecture-count"
-              type="number"
-              min={1}
-              max={10}
-              value={lectureCount}
-              onChange={(e) =>
-                handleLectureCountChange(parseInt(e.target.value) || 6)
-              }
-              className="w-20"
-            />
-          </div>
-
-          {existingData && (
-            <div className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 pb-0.5">
-              <AlertCircle className="h-4 w-4" />
-              <span>Editing existing record</span>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Attendance Grid */}
-      {membersLoading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : members.length === 0 ? (
-        <div className="rounded-lg border bg-card flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-muted-foreground">
-            No active members in {currentTeam?.name || "this team"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Add members via the Roster page first
-          </p>
-        </div>
-      ) : (
-        <>
-          <AttendanceGrid
-            rows={rows}
-            lectureCount={lectureCount}
-            onToggle={handleToggle}
-          />
-
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <Button
-              size="lg"
-              onClick={handleSave}
-              disabled={saving}
-              className="min-w-36"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  {existingData ? "Update Attendance" : "Save Attendance"}
-                </>
-              )}
-            </Button>
           </div>
-        </>
-      )}
+
+          {/* Date range */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: "var(--neo-text-muted)" }}>
+                From
+              </label>
+              <Popover open={fromOpen} onOpenChange={setFromOpen}>
+                <PopoverTrigger className="neo-btn flex items-center gap-2 px-3 py-2 text-sm">
+                  <CalendarIcon className="h-4 w-4 opacity-60" />
+                  {format(dateFrom, "dd MMM yyyy")}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={(d) => {
+                      if (d) {
+                        setDateFrom(d);
+                        setFromOpen(false);
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: "var(--neo-text-muted)" }}>
+                To
+              </label>
+              <Popover open={toOpen} onOpenChange={setToOpen}>
+                <PopoverTrigger className="neo-btn flex items-center gap-2 px-3 py-2 text-sm">
+                  <CalendarIcon className="h-4 w-4 opacity-60" />
+                  {format(dateTo, "dd MMM yyyy")}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={(d) => {
+                      if (d) {
+                        setDateTo(d);
+                        setToOpen(false);
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="text-xs" style={{ color: "var(--neo-text-muted)" }}>
+              {dates.length} day{dates.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+        </div>
+
+        {/* Member Cards */}
+        {dataLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--neo-text-muted)" }} />
+          </div>
+        ) : members.length === 0 ? (
+          <div className="neo-pressed p-12 text-center">
+            <p className="text-sm" style={{ color: "var(--neo-text-muted)" }}>
+              No active members in this team
+            </p>
+            <p className="text-xs mt-1" style={{ color: "var(--neo-text-muted)", opacity: 0.7 }}>
+              Add members via the Roster page
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {members.map((member) => (
+              <MemberAttendanceCard
+                key={member.id}
+                member={member}
+                teamId={selectedTeam}
+                subjects={getSubjectsForMember(member)}
+                dates={dates}
+                existingEntries={getEntriesForMember(member.id)}
+                markedByEmail={user?.email || ""}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
