@@ -96,16 +96,26 @@ function MarkAttendanceContent() {
       try {
         const startDate = dates[0];
         const endDate = dates[dates.length - 1];
-        const [teamMembers, teamEntries] = await Promise.all([
-          getTeamMembers(selectedTeam),
-          getEntriesByTeam(selectedTeam, startDate, endDate),
-        ]);
+        
+        let teamMembers: any[] = [];
+        try {
+          teamMembers = await getTeamMembers(selectedTeam);
+        } catch (err) {
+          console.error("Failed to load team members:", err);
+          if (!cancelled) toast.error("Failed to load team members");
+        }
+
+        let teamEntries: any[] = [];
+        try {
+          teamEntries = await getEntriesByTeam(selectedTeam, startDate, endDate);
+        } catch (err) {
+          console.error("Failed to load attendance entries:", err);
+          if (!cancelled) toast.error("Failed to load attendance entries");
+        }
 
         if (cancelled) return;
         setMembers(teamMembers);
         setEntries(teamEntries);
-      } catch {
-        if (!cancelled) toast.error("Failed to load attendance data");
       } finally {
         if (!cancelled) setDataLoading(false);
       }

@@ -235,12 +235,10 @@ export async function POST(request: NextRequest) {
         .orderBy("name")
         .get();
 
-      // Get attendance entries (new system)
+      // Get attendance entries (new system) - single-field index query
       const entriesSnapshot = await adminDb
         .collection("attendanceEntries")
         .where("teamId", "==", teamId)
-        .where("date", ">=", startDate)
-        .where("date", "<=", endDate)
         .get();
 
       // Build summary
@@ -272,6 +270,7 @@ export async function POST(request: NextRequest) {
 
       for (const doc of entriesSnapshot.docs) {
         const entry = doc.data();
+        if (entry.date < startDate || entry.date > endDate) continue;
         const member = memberMap.get(entry.memberId);
         if (member) {
           member.totalMissed += entry.missed || 0;
