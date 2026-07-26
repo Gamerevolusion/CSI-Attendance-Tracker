@@ -50,6 +50,17 @@ import { CalendarIcon, Trash2, ArrowUpDown, History } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+function formatMarkedBy(markedBy: string): string {
+  if (!markedBy) return "Admin";
+  if (!markedBy.includes("@")) return markedBy;
+  const prefix = markedBy.split("@")[0];
+  const cleanName = prefix.replace(/\d+$/, "");
+  if (cleanName.length > 1) {
+    return cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+  }
+  return prefix;
+}
+
 function HistoryContent() {
   const { isAdmin } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
@@ -179,6 +190,19 @@ function HistoryContent() {
     };
   }, [selectedTeam, dateFrom, dateTo, refreshKey]);
 
+  // Dynamic member options combining roster members & history records
+  const memberOptionsMap = new Map<string, string>();
+  members.forEach((m) => memberOptionsMap.set(m.id, m.name));
+  records.forEach((r) => {
+    if (r.memberId && !memberOptionsMap.has(r.memberId)) {
+      memberOptionsMap.set(r.memberId, r.memberName || r.memberId);
+    }
+  });
+  const memberOptions = Array.from(memberOptionsMap.entries()).map(([id, name]) => ({
+    id,
+    name,
+  }));
+
   // Filter & sort
   let filtered = records;
   if (selectedMember !== "all") {
@@ -193,7 +217,12 @@ function HistoryContent() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await deleteAttendanceRecord(deleteTarget.id);
+      await deleteAttendanceRecord(
+        deleteTarget.id,
+        deleteTarget.teamId,
+        deleteTarget.memberId,
+        deleteTarget.date
+      );
       toast.success("Record deleted");
       setDeleteTarget(null);
       await loadRecords();
@@ -289,12 +318,16 @@ function HistoryContent() {
         <div className="space-y-2 w-full sm:w-auto">
           <Label>Member</Label>
           <Select value={selectedMember} onValueChange={(val) => val && setSelectedMember(val)}>
-            <SelectTrigger className="w-full sm:w-44 h-10 sm:h-8">
-              <SelectValue placeholder="All members" />
+            <SelectTrigger className="w-full sm:w-48 h-10 sm:h-8">
+              <SelectValue placeholder="All members">
+                {selectedMember === "all"
+                  ? "All members"
+                  : memberOptionsMap.get(selectedMember) || "Member"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All members</SelectItem>
-              {members.map((m) => (
+              {memberOptions.map((m) => (
                 <SelectItem key={m.id} value={m.id}>
                   {m.name}
                 </SelectItem>
@@ -363,8 +396,8 @@ function HistoryContent() {
                           {record.totalMissed} / {record.lectureCount}
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {record.markedBy}
+                      <TableCell className="text-muted-foreground text-xs font-medium">
+                        {formatMarkedBy(record.markedBy)}
                       </TableCell>
                       {isAdmin && (
                         <TableCell className="text-right">
@@ -403,7 +436,7 @@ function HistoryContent() {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDateDisplay(record.date)} · by {record.markedBy}
+                      {formatDateDisplay(record.date)} · by {formatMarkedBy(record.markedBy)}
                     </p>
                   </div>
                   {isAdmin && (

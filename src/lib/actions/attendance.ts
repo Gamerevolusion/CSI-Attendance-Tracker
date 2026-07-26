@@ -102,7 +102,37 @@ export async function getAttendanceByTeamAndDateRange(
 // ============================================================
 
 export async function deleteAttendanceRecord(
-  attendanceId: string
+  attendanceId: string,
+  teamId?: string,
+  memberId?: string,
+  date?: string
 ): Promise<void> {
-  await deleteDoc(doc(db, "attendance", attendanceId));
+  // 1. Delete from summary attendance collection
+  try {
+    await deleteDoc(doc(db, "attendance", attendanceId));
+  } catch {
+    // ignore
+  }
+
+  // 2. Query and delete all matching entries from attendanceEntries collection
+  if (teamId && memberId && date) {
+    const qEntries = query(
+      collection(db, "attendanceEntries"),
+      where("teamId", "==", teamId),
+      where("memberId", "==", memberId),
+      where("date", "==", date)
+    );
+    const snap = await getDocs(qEntries);
+    if (!snap.empty) {
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  } else if (attendanceId) {
+    try {
+      await deleteDoc(doc(db, "attendanceEntries", attendanceId));
+    } catch {
+      // ignore
+    }
+  }
 }
