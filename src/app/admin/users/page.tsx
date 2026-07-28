@@ -326,7 +326,9 @@ function AdminUsersContent() {
                             disabled={isSelf}
                           >
                             <SelectTrigger className="w-36 h-8 text-xs mx-auto">
-                              <SelectValue placeholder="Select team" />
+                              <SelectValue placeholder="Select team">
+                                {teamNameMap.get(u.teamId || "")}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {teams.map((t) => (
@@ -419,7 +421,9 @@ function AdminUsersContent() {
                         disabled={isSelf}
                       >
                         <SelectTrigger className="w-full h-8 text-xs">
-                          <SelectValue placeholder="Select team" />
+                          <SelectValue placeholder="Select team">
+                            {teamNameMap.get(u.teamId || "")}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {teams.map((t) => (
@@ -477,7 +481,9 @@ function AdminUsersContent() {
                 <Label htmlFor="user-team">Assigned Team *</Label>
                 <Select value={newTeamId} onValueChange={(val) => val && setNewTeamId(val)}>
                   <SelectTrigger id="user-team" className="w-full">
-                    <SelectValue placeholder="Select team" />
+                    <SelectValue placeholder="Select team">
+                      {teamNameMap.get(newTeamId)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {teams.map((t) => (
