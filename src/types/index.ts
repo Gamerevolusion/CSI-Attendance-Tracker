@@ -66,10 +66,13 @@ export interface AttendanceEntry {
 // Auth
 // ============================================================
 
+export type AccessLevel = "Admin" | "Head's Access" | "Member's Access";
+
 export interface AuthorizedUser {
   email: string; // document ID
   name: string;
   isAdmin: boolean;
+  accessLevel?: AccessLevel;
   addedAt: Date;
 }
 

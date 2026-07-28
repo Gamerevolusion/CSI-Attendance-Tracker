@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminRoute } from "@/components/AdminRoute";
-import type { AuthorizedUser } from "@/types";
+import type { AuthorizedUser, AccessLevel } from "@/types";
 import {
   getAuthorizedUsers,
   addAuthorizedUser,
@@ -13,9 +13,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -31,8 +37,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, ShieldCheck, Shield } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Shield, UserCheck } from "lucide-react";
 import { toast } from "sonner";
+
+function RoleBadge({ level }: { level?: AccessLevel }) {
+  if (level === "Admin") {
+    return (
+      <Badge className="gap-1">
+        <ShieldCheck className="h-3 w-3" />
+        Admin
+      </Badge>
+    );
+  }
+  if (level === "Head's Access") {
+    return (
+      <Badge variant="outline" className="gap-1 border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10">
+        <UserCheck className="h-3 w-3" />
+        Head's Access
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <Shield className="h-3 w-3" />
+      Member's Access
+    </Badge>
+  );
+}
 
 function AdminUsersContent() {
   const { user } = useAuth();
@@ -45,7 +76,7 @@ function AdminUsersContent() {
   // Add form state
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
-  const [newIsAdmin, setNewIsAdmin] = useState(false);
+  const [newAccessLevel, setNewAccessLevel] = useState<AccessLevel>("Member's Access");
   const [adding, setAdding] = useState(false);
 
   const loadUsers = useCallback(async () => {
@@ -71,14 +102,14 @@ function AdminUsersContent() {
       await addAuthorizedUser(
         newEmail.trim().toLowerCase(),
         newName.trim(),
-        newIsAdmin
+        newAccessLevel
       );
 
       toast.success(`${newName.trim()} added`);
       setAddDialogOpen(false);
       setNewEmail("");
       setNewName("");
-      setNewIsAdmin(false);
+      setNewAccessLevel("Member's Access");
       await loadUsers();
     } catch {
       toast.error("Failed to add user");
@@ -87,18 +118,16 @@ function AdminUsersContent() {
     }
   };
 
-  const handleToggleAdmin = async (targetUser: AuthorizedUser) => {
+  const handleAccessLevelChange = async (targetUser: AuthorizedUser, level: AccessLevel) => {
     try {
       await updateAuthorizedUser(targetUser.email, {
-        isAdmin: !targetUser.isAdmin,
+        accessLevel: level,
       });
 
-      toast.success(
-        `${targetUser.name} ${!targetUser.isAdmin ? "promoted to" : "removed from"} admin`
-      );
+      toast.success(`${targetUser.name}'s permission updated to ${level}`);
       await loadUsers();
     } catch {
-      toast.error("Failed to update user");
+      toast.error("Failed to update user permission");
     }
   };
 
@@ -144,7 +173,7 @@ function AdminUsersContent() {
             Manage Users
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Control who can access the attendance tracker
+            Control who can access the attendance tracker and set permissions
           </p>
         </div>
         <Button className="w-full sm:w-auto" onClick={() => setAddDialogOpen(true)}>
@@ -162,94 +191,103 @@ function AdminUsersContent() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead className="text-center">Role</TableHead>
-                <TableHead className="text-center">Admin</TableHead>
+                <TableHead className="text-center">Permission / Access Level</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((u) => (
-                <TableRow key={u.email}>
-                  <TableCell className="font-medium">{u.name}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {u.email}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {u.isAdmin ? (
-                      <Badge className="gap-1">
-                        <ShieldCheck className="h-3 w-3" />
-                        Admin
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="gap-1">
-                        <Shield className="h-3 w-3" />
-                        Member
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={u.isAdmin}
-                      onCheckedChange={() => handleToggleAdmin(u)}
-                      disabled={u.email === user?.email}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeleteTarget(u)}
-                      disabled={u.email === user?.email}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {users.map((u) => {
+                const currentAccess: AccessLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
+                const isSelf = u.email === user?.email;
+
+                return (
+                  <TableRow key={u.email}>
+                    <TableCell className="font-medium">{u.name}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {u.email}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <RoleBadge level={currentAccess} />
+                    </TableCell>
+                    <TableCell className="text-center flex justify-center py-2">
+                      <Select
+                        value={currentAccess}
+                        onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
+                        disabled={isSelf}
+                      >
+                        <SelectTrigger className="w-44 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                          <SelectItem value="Head's Access">Head's Access</SelectItem>
+                          <SelectItem value="Member's Access">Member's Access</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteTarget(u)}
+                        disabled={isSelf}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
 
         {/* Mobile cards */}
         <div className="sm:hidden divide-y">
-          {users.map((u) => (
-            <div key={u.email} className="flex items-center gap-3 p-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{u.name}</span>
-                  {u.isAdmin ? (
-                    <Badge className="gap-1 text-[10px] px-1.5 py-0">
-                      <ShieldCheck className="h-2.5 w-2.5" />
-                      Admin
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
-                      <Shield className="h-2.5 w-2.5" />
-                      Member
-                    </Badge>
-                  )}
+          {users.map((u) => {
+            const currentAccess: AccessLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
+            const isSelf = u.email === user?.email;
+
+            return (
+              <div key={u.email} className="flex flex-col gap-2 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="font-medium text-sm truncate">{u.name}</span>
+                    <RoleBadge level={currentAccess} />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 shrink-0"
+                    onClick={() => setDeleteTarget(u)}
+                    disabled={isSelf}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {u.email}
                 </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-muted-foreground">Access:</span>
+                  <Select
+                    value={currentAccess}
+                    onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
+                    disabled={isSelf}
+                  >
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Head's Access">Head's Access</SelectItem>
+                      <SelectItem value="Member's Access">Member's Access</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Switch
-                  checked={u.isAdmin}
-                  onCheckedChange={() => handleToggleAdmin(u)}
-                  disabled={u.email === user?.email}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 w-9 p-0"
-                  onClick={() => setDeleteTarget(u)}
-                  disabled={u.email === user?.email}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -279,13 +317,21 @@ function AdminUsersContent() {
                 placeholder="Full name"
               />
             </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="user-admin"
-                checked={newIsAdmin}
-                onCheckedChange={setNewIsAdmin}
-              />
-              <Label htmlFor="user-admin">Grant admin privileges</Label>
+            <div className="space-y-2">
+              <Label htmlFor="user-access">Access Level *</Label>
+              <Select
+                value={newAccessLevel}
+                onValueChange={(val) => val && setNewAccessLevel(val as AccessLevel)}
+              >
+                <SelectTrigger id="user-access" className="w-full">
+                  <SelectValue placeholder="Select access level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Head's Access">Head's Access</SelectItem>
+                  <SelectItem value="Member's Access">Member's Access</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

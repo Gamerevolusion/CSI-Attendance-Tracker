@@ -8,7 +8,17 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { AuthorizedUser } from "@/types";
+import type { AuthorizedUser, AccessLevel } from "@/types";
+
+/**
+ * Helper to compute standardized AccessLevel from raw document data
+ */
+export function getAccessLevelFromData(data: { accessLevel?: string; isAdmin?: boolean }): AccessLevel {
+  if (data.accessLevel === "Admin" || data.accessLevel === "Head's Access" || data.accessLevel === "Member's Access") {
+    return data.accessLevel as AccessLevel;
+  }
+  return data.isAdmin ? "Admin" : "Member's Access";
+}
 
 /**
  * Fetch all authorized users.
@@ -16,11 +26,17 @@ import type { AuthorizedUser } from "@/types";
  */
 export async function getAuthorizedUsers(): Promise<AuthorizedUser[]> {
   const snapshot = await getDocs(collection(db, "authorizedUsers"));
-  const users = snapshot.docs.map((d) => ({
-    email: d.id,
-    ...d.data(),
-    addedAt: d.data().addedAt?.toDate?.() ?? null,
-  })) as AuthorizedUser[];
+  const users = snapshot.docs.map((d) => {
+    const data = d.data();
+    const accessLevel = getAccessLevelFromData(data);
+    return {
+      email: d.id,
+      name: data.name,
+      isAdmin: accessLevel === "Admin" || data.isAdmin === true,
+      accessLevel,
+      addedAt: data.addedAt?.toDate?.() ?? null,
+    };
+  }) as AuthorizedUser[];
 
   // Sort by addedAt descending (newest first)
   users.sort((a, b) => {
@@ -40,27 +56,34 @@ export async function getAuthorizedUsers(): Promise<AuthorizedUser[]> {
 export async function addAuthorizedUser(
   email: string,
   name: string,
-  isAdmin: boolean
+  accessLevel: AccessLevel = "Member's Access"
 ): Promise<void> {
   const normalizedEmail = email.toLowerCase().trim();
   await setDoc(doc(db, "authorizedUsers", normalizedEmail), {
     name: name.trim(),
-    isAdmin: isAdmin || false,
+    accessLevel,
+    isAdmin: accessLevel === "Admin",
     addedAt: serverTimestamp(),
   });
 }
 
 /**
- * Update an authorized user's admin status or name.
+ * Update an authorized user's access level or name.
  * Requires the caller to be an admin (enforced by Firestore rules).
  */
 export async function updateAuthorizedUser(
   email: string,
-  data: { name?: string; isAdmin?: boolean }
+  data: { name?: string; isAdmin?: boolean; accessLevel?: AccessLevel }
 ): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData.name = data.name.trim();
-  if (data.isAdmin !== undefined) updateData.isAdmin = data.isAdmin;
+  if (data.accessLevel !== undefined) {
+    updateData.accessLevel = data.accessLevel;
+    updateData.isAdmin = data.accessLevel === "Admin";
+  } else if (data.isAdmin !== undefined) {
+    updateData.isAdmin = data.isAdmin;
+    updateData.accessLevel = data.isAdmin ? "Admin" : "Member's Access";
+  }
 
   await updateDoc(doc(db, "authorizedUsers", email), updateData);
 }
