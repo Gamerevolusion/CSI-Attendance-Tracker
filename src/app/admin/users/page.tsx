@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -37,8 +38,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, ShieldCheck, Shield, UserCheck } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Shield, UserCheck, Users } from "lucide-react";
 import { toast } from "sonner";
+
+type FilterTab = "All" | AccessLevel;
 
 function RoleBadge({ level }: { level?: AccessLevel }) {
   if (level === "Admin") {
@@ -69,6 +72,7 @@ function AdminUsersContent() {
   const { user } = useAuth();
   const [users, setUsers] = useState<AuthorizedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<FilterTab>("All");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AuthorizedUser | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -156,6 +160,19 @@ function AdminUsersContent() {
     }
   };
 
+  // Helper counts for navbar
+  const countAll = users.length;
+  const countAdmin = users.filter((u) => (u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access")) === "Admin").length;
+  const countHead = users.filter((u) => (u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access")) === "Head's Access").length;
+  const countMember = users.filter((u) => (u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access")) === "Member's Access").length;
+
+  // Filtered users list based on selected navbar element
+  const filteredUsers = users.filter((u) => {
+    if (activeTab === "All") return true;
+    const currentLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
+    return currentLevel === activeTab;
+  });
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -182,6 +199,85 @@ function AdminUsersContent() {
         </Button>
       </div>
 
+      {/* Access Level Navbar / Sub-Navigation */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-muted/50 dark:bg-muted/30 rounded-xl border border-border/60 w-fit">
+        <button
+          onClick={() => setActiveTab("All")}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all select-none",
+            activeTab === "All"
+              ? "bg-background text-foreground shadow-sm dark:bg-card font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+          )}
+        >
+          <Users className="h-3.5 w-3.5" />
+          <span>All Users</span>
+          <Badge
+            variant={activeTab === "All" ? "default" : "secondary"}
+            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
+          >
+            {countAll}
+          </Badge>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("Admin")}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all select-none",
+            activeTab === "Admin"
+              ? "bg-background text-foreground shadow-sm dark:bg-card font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+          )}
+        >
+          <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
+          <span>Admin</span>
+          <Badge
+            variant={activeTab === "Admin" ? "default" : "secondary"}
+            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
+          >
+            {countAdmin}
+          </Badge>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("Head's Access")}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all select-none",
+            activeTab === "Head's Access"
+              ? "bg-background text-foreground shadow-sm dark:bg-card font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+          )}
+        >
+          <UserCheck className="h-3.5 w-3.5 text-blue-500" />
+          <span>Head's Access</span>
+          <Badge
+            variant={activeTab === "Head's Access" ? "default" : "secondary"}
+            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
+          >
+            {countHead}
+          </Badge>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("Member's Access")}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all select-none",
+            activeTab === "Member's Access"
+              ? "bg-background text-foreground shadow-sm dark:bg-card font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+          )}
+        >
+          <Shield className="h-3.5 w-3.5 text-emerald-500" />
+          <span>Member's Access</span>
+          <Badge
+            variant={activeTab === "Member's Access" ? "default" : "secondary"}
+            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
+          >
+            {countMember}
+          </Badge>
+        </button>
+      </div>
+
       <div className="rounded-lg border bg-card">
         {/* Desktop table */}
         <div className="hidden sm:block overflow-x-auto">
@@ -196,98 +292,112 @@ function AdminUsersContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((u) => {
-                const currentAccess: AccessLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
-                const isSelf = u.email === user?.email;
+              {filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                    No users found for {activeTab === "All" ? "this group" : activeTab}.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredUsers.map((u) => {
+                  const currentAccess: AccessLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
+                  const isSelf = u.email === user?.email;
 
-                return (
-                  <TableRow key={u.email}>
-                    <TableCell className="font-medium">{u.name}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {u.email}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <RoleBadge level={currentAccess} />
-                    </TableCell>
-                    <TableCell className="text-center flex justify-center py-2">
-                      <Select
-                        value={currentAccess}
-                        onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
-                        disabled={isSelf}
-                      >
-                        <SelectTrigger className="w-44 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                          <SelectItem value="Head's Access">Head's Access</SelectItem>
-                          <SelectItem value="Member's Access">Member's Access</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeleteTarget(u)}
-                        disabled={isSelf}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                  return (
+                    <TableRow key={u.email}>
+                      <TableCell className="font-medium">{u.name}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {u.email}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <RoleBadge level={currentAccess} />
+                      </TableCell>
+                      <TableCell className="text-center flex justify-center py-2">
+                        <Select
+                          value={currentAccess}
+                          onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
+                          disabled={isSelf}
+                        >
+                          <SelectTrigger className="w-44 h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Admin">Admin</SelectItem>
+                            <SelectItem value="Head's Access">Head's Access</SelectItem>
+                            <SelectItem value="Member's Access">Member's Access</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTarget(u)}
+                          disabled={isSelf}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
 
         {/* Mobile cards */}
         <div className="sm:hidden divide-y">
-          {users.map((u) => {
-            const currentAccess: AccessLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
-            const isSelf = u.email === user?.email;
+          {filteredUsers.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground text-sm">
+              No users found for {activeTab === "All" ? "this group" : activeTab}.
+            </div>
+          ) : (
+            filteredUsers.map((u) => {
+              const currentAccess: AccessLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
+              const isSelf = u.email === user?.email;
 
-            return (
-              <div key={u.email} className="flex flex-col gap-2 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap min-w-0">
-                    <span className="font-medium text-sm truncate">{u.name}</span>
-                    <RoleBadge level={currentAccess} />
+              return (
+                <div key={u.email} className="flex flex-col gap-2 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="font-medium text-sm truncate">{u.name}</span>
+                      <RoleBadge level={currentAccess} />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() => setDeleteTarget(u)}
+                      disabled={isSelf}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 shrink-0"
-                    onClick={() => setDeleteTarget(u)}
-                    disabled={isSelf}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {u.email}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground">Access:</span>
+                    <Select
+                      value={currentAccess}
+                      onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
+                      disabled={isSelf}
+                    >
+                      <SelectTrigger className="w-full h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                        <SelectItem value="Head's Access">Head's Access</SelectItem>
+                        <SelectItem value="Member's Access">Member's Access</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  {u.email}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-muted-foreground">Access:</span>
-                  <Select
-                    value={currentAccess}
-                    onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
-                    disabled={isSelf}
-                  >
-                    <SelectTrigger className="w-full h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Head's Access">Head's Access</SelectItem>
-                      <SelectItem value="Member's Access">Member's Access</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
