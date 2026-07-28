@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminRoute } from "@/components/AdminRoute";
 import type { AuthorizedUser } from "@/types";
+import {
+  getAuthorizedUsers,
+  addAuthorizedUser,
+  updateAuthorizedUser,
+  removeAuthorizedUser,
+} from "@/lib/actions/users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,56 +48,31 @@ function AdminUsersContent() {
   const [newIsAdmin, setNewIsAdmin] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  const getToken = useCallback(
-    () => user?.getIdToken() || Promise.resolve(""),
-    [user]
-  );
-
-  const [refreshKey, setRefreshKey] = useState(0);
-  const loadUsers = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const loadUsers = useCallback(async () => {
+    try {
+      const data = await getAuthorizedUsers();
+      setUsers(data);
+    } catch {
+      toast.error("Failed to load authorized users");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    async function fetchUsers() {
-      try {
-        const token = await getToken();
-        if (cancelled) return;
-        const res = await fetch("/api/admin/users", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to load users");
-        const data = await res.json();
-        if (!cancelled) setUsers(data);
-      } catch {
-        if (!cancelled) toast.error("Failed to load authorized users");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchUsers();
-    return () => { cancelled = true; };
-  }, [getToken, refreshKey]);
+    loadUsers();
+  }, [loadUsers]);
 
   const handleAdd = async () => {
     if (!newEmail.trim() || !newName.trim()) return;
 
     setAdding(true);
     try {
-      const token = await getToken();
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: newEmail.trim().toLowerCase(),
-          name: newName.trim(),
-          isAdmin: newIsAdmin,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to add user");
+      await addAuthorizedUser(
+        newEmail.trim().toLowerCase(),
+        newName.trim(),
+        newIsAdmin
+      );
 
       toast.success(`${newName.trim()} added`);
       setAddDialogOpen(false);
@@ -108,20 +89,9 @@ function AdminUsersContent() {
 
   const handleToggleAdmin = async (targetUser: AuthorizedUser) => {
     try {
-      const token = await getToken();
-      const res = await fetch("/api/admin/users", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: targetUser.email,
-          isAdmin: !targetUser.isAdmin,
-        }),
+      await updateAuthorizedUser(targetUser.email, {
+        isAdmin: !targetUser.isAdmin,
       });
-
-      if (!res.ok) throw new Error("Failed to update user");
 
       toast.success(
         `${targetUser.name} ${!targetUser.isAdmin ? "promoted to" : "removed from"} admin`
@@ -135,21 +105,15 @@ function AdminUsersContent() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
+    // Prevent self-removal
+    if (deleteTarget.email === user?.email) {
+      toast.error("Cannot remove your own account");
+      return;
+    }
+
     setDeleting(true);
     try {
-      const token = await getToken();
-      const res = await fetch(
-        `/api/admin/users?email=${encodeURIComponent(deleteTarget.email)}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to remove user");
-      }
+      await removeAuthorizedUser(deleteTarget.email);
 
       toast.success(`${deleteTarget.name} removed`);
       setDeleteTarget(null);
