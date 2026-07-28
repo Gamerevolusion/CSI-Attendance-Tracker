@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getTeam } from "@/lib/actions/roster";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, Loader2, User, ShieldCheck, Shield, Mail } from "lucide-react";
+import { Save, Loader2, User, ShieldCheck, Shield, UserCheck, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 const ROLE_OPTIONS = [
@@ -42,7 +43,7 @@ const ROLE_OPTIONS = [
 ];
 
 function ProfileContent() {
-  const { user } = useAuth();
+  const { user, accessLevel, teamId: userTeamId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
@@ -50,6 +51,7 @@ function ProfileContent() {
   const [customRole, setCustomRole] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [useCustomRole, setUseCustomRole] = useState(false);
+  const [teamName, setTeamName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -71,6 +73,12 @@ function ProfileContent() {
             setRole(savedRole);
           }
         }
+
+        // Load team name if assigned
+        if (userTeamId) {
+          const team = await getTeam(userTeamId);
+          setTeamName(team?.name || null);
+        }
       } catch {
         toast.error("Failed to load profile");
       } finally {
@@ -78,7 +86,7 @@ function ProfileContent() {
       }
     }
     load();
-  }, [user]);
+  }, [user, userTeamId]);
 
   const handleSave = async () => {
     if (!user?.email || !name.trim()) return;
@@ -135,20 +143,30 @@ function ProfileContent() {
             </Label>
             <div className="flex items-center gap-2">
               <Input value={user?.email || ""} disabled className="bg-muted/50" />
-              <Badge variant={isAdmin ? "default" : "secondary"} className="gap-1 shrink-0">
-                {isAdmin ? (
+              <Badge variant={accessLevel === "Admin" ? "default" : accessLevel === "Head's Access" ? "outline" : "secondary"} className="gap-1 shrink-0">
+                {accessLevel === "Admin" ? (
                   <>
                     <ShieldCheck className="h-3 w-3" />
                     Admin
                   </>
+                ) : accessLevel === "Head's Access" ? (
+                  <>
+                    <UserCheck className="h-3 w-3" />
+                    Head&apos;s Access
+                  </>
                 ) : (
                   <>
                     <Shield className="h-3 w-3" />
-                    Member
+                    Member&apos;s Access
                   </>
                 )}
               </Badge>
             </div>
+            {teamName && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Team: <span className="font-medium text-foreground">{teamName}</span>
+              </p>
+            )}
           </div>
 
           <Separator />

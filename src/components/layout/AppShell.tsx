@@ -21,13 +21,13 @@ import {
   HelpCircle,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/attendance/mark", label: "Mark Attendance", icon: ClipboardCheck },
-  { href: "/attendance/history", label: "History", icon: History },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/help", label: "Help & Guide", icon: HelpCircle },
-  { href: "/profile", label: "My Profile", icon: User },
+const allNavItems = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, minAccess: "Member's Access" as const },
+  { href: "/attendance/mark", label: "Mark Attendance", icon: ClipboardCheck, minAccess: "Head's Access" as const },
+  { href: "/attendance/history", label: "History", icon: History, minAccess: "Head's Access" as const },
+  { href: "/reports", label: "Reports", icon: FileText, minAccess: "Member's Access" as const },
+  { href: "/help", label: "Help & Guide", icon: HelpCircle, minAccess: "Member's Access" as const },
+  { href: "/profile", label: "My Profile", icon: User, minAccess: "Member's Access" as const },
 ];
 
 const adminNavItems = [
@@ -36,8 +36,20 @@ const adminNavItems = [
   { href: "/admin/users", label: "Manage Users", icon: UserCog },
 ];
 
+/**
+ * Check if a user's access level meets the minimum required.
+ * Admin > Head's Access > Member's Access
+ */
+function hasAccess(
+  userLevel: "Admin" | "Head's Access" | "Member's Access",
+  minLevel: "Admin" | "Head's Access" | "Member's Access"
+): boolean {
+  const order = { "Admin": 3, "Head's Access": 2, "Member's Access": 1 };
+  return order[userLevel] >= order[minLevel];
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, accessLevel, signOut } = useAuth();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -57,6 +69,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
+
+  // Filter nav items by access level
+  const visibleNavItems = allNavItems.filter((item) =>
+    hasAccess(accessLevel, item.minAccess)
+  );
 
   return (
     <div className="flex h-dvh overflow-hidden" style={{ background: "var(--neo-bg)" }}>
@@ -116,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               Main
             </p>
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               return (

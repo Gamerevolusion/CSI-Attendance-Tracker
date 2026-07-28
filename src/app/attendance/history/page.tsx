@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { HeadRoute } from "@/components/HeadRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
 import {
   getAttendanceByTeamAndDateRange,
@@ -62,7 +62,7 @@ function formatMarkedBy(markedBy: string): string {
 }
 
 function HistoryContent() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, accessLevel, teamId: userTeamId } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
@@ -92,7 +92,12 @@ function HistoryContent() {
       try {
         const t = await getTeams();
         setTeams(t);
-        if (t.length > 0) setSelectedTeam(t[0].id);
+        // If Head, lock to their team
+        if (accessLevel === "Head's Access" && userTeamId && t.some((team) => team.id === userTeamId)) {
+          setSelectedTeam(userTeamId);
+        } else if (t.length > 0) {
+          setSelectedTeam(t[0].id);
+        }
       } catch {
         toast.error("Failed to load teams");
       } finally {
@@ -100,7 +105,7 @@ function HistoryContent() {
       }
     }
     load();
-  }, []);
+  }, [accessLevel, userTeamId]);
 
   // Refresh trigger
   const [refreshKey, setRefreshKey] = useState(0);
@@ -257,23 +262,27 @@ function HistoryContent() {
       {/* Team Tabs Strip */}
       <div className="neo-pressed p-1.5 rounded-2xl">
         <div className="neo-scroll-x flex gap-1.5 p-1">
-          {teams.map((team) => (
-            <button
-              key={team.id}
-              type="button"
-              className={`px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap font-medium transition-all duration-150 shrink-0 ${
-                selectedTeam === team.id
-                  ? "neo-raised font-bold text-foreground"
-                  : "text-muted-foreground hover:text-foreground opacity-80"
-              }`}
-              onClick={() => {
-                setSelectedTeam(team.id);
-                setSelectedMember("all");
-              }}
-            >
-              {team.name}
-            </button>
-          ))}
+          {teams.map((team) => {
+            const isLocked = accessLevel === "Head's Access" && userTeamId && team.id !== userTeamId;
+            return (
+              <button
+                key={team.id}
+                type="button"
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap font-medium transition-all duration-150 shrink-0 ${
+                  selectedTeam === team.id
+                    ? "neo-raised font-bold text-foreground"
+                    : "text-muted-foreground hover:text-foreground opacity-80"
+                } ${isLocked ? "hidden" : ""}`}
+                onClick={() => {
+                  setSelectedTeam(team.id);
+                  setSelectedMember("all");
+                }}
+                disabled={!!isLocked}
+              >
+                {team.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -497,8 +506,8 @@ function HistoryContent() {
 
 export default function AttendanceHistoryPage() {
   return (
-    <ProtectedRoute>
+    <HeadRoute>
       <HistoryContent />
-    </ProtectedRoute>
+    </HeadRoute>
   );
 }

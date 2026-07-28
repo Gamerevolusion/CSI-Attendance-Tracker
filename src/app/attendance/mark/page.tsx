@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { HeadRoute } from "@/components/HeadRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
 import { getCurriculums, getSubjects } from "@/lib/actions/curriculum";
 import { getEntriesByTeam } from "@/lib/actions/attendanceEntries";
@@ -22,7 +22,7 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth } from "date-fns";
 const LAST_TEAM_KEY = "csi-last-team";
 
 function MarkAttendanceContent() {
-  const { user } = useAuth();
+  const { user, accessLevel, teamId: userTeamId } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [loading, setLoading] = useState(true);
@@ -71,11 +71,16 @@ function MarkAttendanceContent() {
         }
         setSubjectsByCurriculum(subMap);
 
-        const lastTeam = localStorage.getItem(LAST_TEAM_KEY);
-        if (lastTeam && t.some((team) => team.id === lastTeam)) {
-          setSelectedTeam(lastTeam);
-        } else if (t.length > 0) {
-          setSelectedTeam(t[0].id);
+        // If Head, lock to their assigned team
+        if (accessLevel === "Head's Access" && userTeamId && t.some((team) => team.id === userTeamId)) {
+          setSelectedTeam(userTeamId);
+        } else {
+          const lastTeam = localStorage.getItem(LAST_TEAM_KEY);
+          if (lastTeam && t.some((team) => team.id === lastTeam)) {
+            setSelectedTeam(lastTeam);
+          } else if (t.length > 0) {
+            setSelectedTeam(t[0].id);
+          }
         }
       } catch {
         toast.error("Failed to load data");
@@ -84,7 +89,7 @@ function MarkAttendanceContent() {
       }
     }
     load();
-  }, []);
+  }, [accessLevel, userTeamId]);
 
   // Load members + entries when team or date range changes
   useEffect(() => {
@@ -178,20 +183,24 @@ function MarkAttendanceContent() {
           {/* Team tabs */}
           <div className="neo-pressed p-1.5 rounded-2xl">
             <div className="neo-scroll-x flex gap-1.5 p-1">
-              {teams.map((team) => (
-                <button
-                  key={team.id}
-                  type="button"
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap font-medium transition-all duration-150 shrink-0 ${
-                    selectedTeam === team.id
-                      ? "neo-raised font-bold text-foreground"
-                      : "text-muted-foreground hover:text-foreground opacity-80"
-                  }`}
-                  onClick={() => handleTeamChange(team.id)}
-                >
-                  {team.name}
-                </button>
-              ))}
+              {teams.map((team) => {
+                const isLocked = accessLevel === "Head's Access" && userTeamId && team.id !== userTeamId;
+                return (
+                  <button
+                    key={team.id}
+                    type="button"
+                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap font-medium transition-all duration-150 shrink-0 ${
+                      selectedTeam === team.id
+                        ? "neo-raised font-bold text-foreground"
+                        : "text-muted-foreground hover:text-foreground opacity-80"
+                    } ${isLocked ? "hidden" : ""}`}
+                    onClick={() => handleTeamChange(team.id)}
+                    disabled={!!isLocked}
+                  >
+                    {team.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -288,8 +297,8 @@ function MarkAttendanceContent() {
 
 export default function MarkAttendancePage() {
   return (
-    <ProtectedRoute>
+    <HeadRoute>
       <MarkAttendanceContent />
-    </ProtectedRoute>
+    </HeadRoute>
   );
 }

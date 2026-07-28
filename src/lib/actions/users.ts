@@ -34,6 +34,7 @@ export async function getAuthorizedUsers(): Promise<AuthorizedUser[]> {
       name: data.name,
       isAdmin: accessLevel === "Admin" || data.isAdmin === true,
       accessLevel,
+      teamId: data.teamId || undefined,
       addedAt: data.addedAt?.toDate?.() ?? null,
     };
   }) as AuthorizedUser[];
@@ -56,33 +57,49 @@ export async function getAuthorizedUsers(): Promise<AuthorizedUser[]> {
 export async function addAuthorizedUser(
   email: string,
   name: string,
-  accessLevel: AccessLevel = "Member's Access"
+  accessLevel: AccessLevel = "Member's Access",
+  teamId?: string
 ): Promise<void> {
   const normalizedEmail = email.toLowerCase().trim();
-  await setDoc(doc(db, "authorizedUsers", normalizedEmail), {
+  const docData: Record<string, unknown> = {
     name: name.trim(),
     accessLevel,
     isAdmin: accessLevel === "Admin",
     addedAt: serverTimestamp(),
-  });
+  };
+
+  // Only store teamId for Head / Member
+  if (accessLevel !== "Admin" && teamId) {
+    docData.teamId = teamId;
+  }
+
+  await setDoc(doc(db, "authorizedUsers", normalizedEmail), docData);
 }
 
 /**
- * Update an authorized user's access level or name.
+ * Update an authorized user's access level, name, or team.
  * Requires the caller to be an admin (enforced by Firestore rules).
  */
 export async function updateAuthorizedUser(
   email: string,
-  data: { name?: string; isAdmin?: boolean; accessLevel?: AccessLevel }
+  data: { name?: string; isAdmin?: boolean; accessLevel?: AccessLevel; teamId?: string | null }
 ): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData.name = data.name.trim();
   if (data.accessLevel !== undefined) {
     updateData.accessLevel = data.accessLevel;
     updateData.isAdmin = data.accessLevel === "Admin";
+    // Clear teamId when promoting to Admin
+    if (data.accessLevel === "Admin") {
+      updateData.teamId = null;
+    }
   } else if (data.isAdmin !== undefined) {
     updateData.isAdmin = data.isAdmin;
     updateData.accessLevel = data.isAdmin ? "Admin" : "Member's Access";
+  }
+
+  if (data.teamId !== undefined) {
+    updateData.teamId = data.teamId;
   }
 
   await updateDoc(doc(db, "authorizedUsers", email), updateData);

@@ -40,7 +40,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 function ReportsContent() {
-  const { user } = useAuth();
+  const { user, accessLevel, teamId: userTeamId } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -71,6 +71,11 @@ function ReportsContent() {
         const [t, curriculums] = await Promise.all([getTeams(), getCurriculums()]);
         setTeams(t);
 
+        // Auto-select team for Head / Member
+        if (accessLevel !== "Admin" && userTeamId) {
+          setSelectedTeamIds(new Set([userTeamId]));
+        }
+
         // Build subject map for display
         const sMap: Record<string, Subject> = {};
         for (const curr of curriculums) {
@@ -87,7 +92,7 @@ function ReportsContent() {
       }
     }
     load();
-  }, []);
+  }, [accessLevel, userTeamId]);
 
   const toggleTeam = (teamId: string) => {
     setSelectedTeamIds((prev) => {
@@ -546,31 +551,37 @@ function ReportsContent() {
           <CardTitle className="text-base">Report Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Team Selection */}
           <div className="space-y-3">
             <Label>Select Teams</Label>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]">
-                <Checkbox
-                  checked={selectedTeamIds.size === teams.length}
-                  onCheckedChange={toggleAll}
-                />
-                <span className="font-medium">All Teams</span>
-              </label>
-              <div className="hidden sm:block w-px h-5 bg-border self-center" />
-              {teams.map((team) => (
-                <label
-                  key={team.id}
-                  className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]"
-                >
+            {accessLevel !== "Admin" && userTeamId ? (
+              <p className="text-sm text-muted-foreground">
+                {teams.find((t) => t.id === userTeamId)?.name || "Your Team"}
+                <span className="text-xs ml-2 text-muted-foreground/70">(locked to your assigned team)</span>
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]">
                   <Checkbox
-                    checked={selectedTeamIds.has(team.id)}
-                    onCheckedChange={() => toggleTeam(team.id)}
+                    checked={selectedTeamIds.size === teams.length}
+                    onCheckedChange={toggleAll}
                   />
-                  {team.name}
+                  <span className="font-medium">All Teams</span>
                 </label>
-              ))}
-            </div>
+                <div className="hidden sm:block w-px h-5 bg-border self-center" />
+                {teams.map((team) => (
+                  <label
+                    key={team.id}
+                    className="flex items-center gap-2 text-sm cursor-pointer min-h-[36px]"
+                  >
+                    <Checkbox
+                      checked={selectedTeamIds.has(team.id)}
+                      onCheckedChange={() => toggleTeam(team.id)}
+                    />
+                    {team.name}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Date Range */}

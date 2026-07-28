@@ -16,6 +16,28 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.token.email)).data.isAdmin == true;
     }
 
+    // Helper: get the user's access level
+    function getUserAccessLevel() {
+      return get(/databases/$(database)/documents/authorizedUsers/$(request.auth.token.email)).data.accessLevel;
+    }
+
+    // Helper: get the user's assigned teamId
+    function getUserTeamId() {
+      return get(/databases/$(database)/documents/authorizedUsers/$(request.auth.token.email)).data.teamId;
+    }
+
+    // Helper: check if user is a Head for a specific team
+    function isHeadOfTeam(teamId) {
+      return isAuthorized()
+        && getUserAccessLevel() == "Head's Access"
+        && getUserTeamId() == teamId;
+    }
+
+    // Helper: check if the user can write to a team (admin or head of that team)
+    function canWriteTeam(teamId) {
+      return isAdmin() || isHeadOfTeam(teamId);
+    }
+
     // Teams: read by any authorized user, write only by admins
     match /teams/{teamId} {
       allow read: if isAuthorized();
@@ -31,7 +53,9 @@ service cloud.firestore {
     // Attendance (old L1–L6): read-only for historical records
     match /attendance/{attendanceId} {
       allow read: if isAuthorized();
-      allow create, update: if isAuthorized();
+      allow create, update: if isAuthorized()
+        && (isAdmin()
+            || (getUserAccessLevel() == "Head's Access"));
       allow delete: if isAdmin();
     }
 
@@ -46,10 +70,12 @@ service cloud.firestore {
       }
     }
 
-    // Attendance Entries (new per-subject): read/write by any authorized user
+    // Attendance Entries (new per-subject): read by authorized, write by admin/head
     match /attendanceEntries/{entryId} {
       allow read: if isAuthorized();
-      allow create, update: if isAuthorized();
+      allow create, update: if isAuthorized()
+        && (isAdmin()
+            || (getUserAccessLevel() == "Head's Access"));
       allow delete: if isAdmin();
     }
 

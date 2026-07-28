@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminRoute } from "@/components/AdminRoute";
-import type { AuthorizedUser, AccessLevel } from "@/types";
+import type { AuthorizedUser, AccessLevel, Team } from "@/types";
 import {
   getAuthorizedUsers,
   addAuthorizedUser,
   updateAuthorizedUser,
   removeAuthorizedUser,
 } from "@/lib/actions/users";
+import { getTeams } from "@/lib/actions/roster";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,14 +57,14 @@ function RoleBadge({ level }: { level?: AccessLevel }) {
     return (
       <Badge variant="outline" className="gap-1 border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10">
         <UserCheck className="h-3 w-3" />
-        Head's Access
+        Head&apos;s Access
       </Badge>
     );
   }
   return (
     <Badge variant="secondary" className="gap-1">
       <Shield className="h-3 w-3" />
-      Member's Access
+      Member&apos;s Access
     </Badge>
   );
 }
@@ -71,6 +72,7 @@ function RoleBadge({ level }: { level?: AccessLevel }) {
 function AdminUsersContent() {
   const { user } = useAuth();
   const [users, setUsers] = useState<AuthorizedUser[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -81,32 +83,47 @@ function AdminUsersContent() {
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newAccessLevel, setNewAccessLevel] = useState<AccessLevel>("Member's Access");
+  const [newTeamId, setNewTeamId] = useState("");
   const [adding, setAdding] = useState(false);
 
-  const loadUsers = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const data = await getAuthorizedUsers();
-      setUsers(data);
+      const [usersData, teamsData] = await Promise.all([
+        getAuthorizedUsers(),
+        getTeams(),
+      ]);
+      setUsers(usersData);
+      setTeams(teamsData);
     } catch {
-      toast.error("Failed to load authorized users");
+      toast.error("Failed to load data");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    loadData();
+  }, [loadData]);
+
+  // Team name lookup
+  const teamNameMap = new Map(teams.map((t) => [t.id, t.name]));
 
   const handleAdd = async () => {
     if (!newEmail.trim() || !newName.trim()) return;
+
+    // Require team for Head / Member
+    if (newAccessLevel !== "Admin" && !newTeamId) {
+      toast.error("Please select a team for this user");
+      return;
+    }
 
     setAdding(true);
     try {
       await addAuthorizedUser(
         newEmail.trim().toLowerCase(),
         newName.trim(),
-        newAccessLevel
+        newAccessLevel,
+        newAccessLevel !== "Admin" ? newTeamId : undefined
       );
 
       toast.success(`${newName.trim()} added`);
@@ -114,7 +131,8 @@ function AdminUsersContent() {
       setNewEmail("");
       setNewName("");
       setNewAccessLevel("Member's Access");
-      await loadUsers();
+      setNewTeamId("");
+      await loadData();
     } catch {
       toast.error("Failed to add user");
     } finally {
@@ -124,21 +142,35 @@ function AdminUsersContent() {
 
   const handleAccessLevelChange = async (targetUser: AuthorizedUser, level: AccessLevel) => {
     try {
-      await updateAuthorizedUser(targetUser.email, {
+      const updatePayload: Parameters<typeof updateAuthorizedUser>[1] = {
         accessLevel: level,
-      });
+      };
+      // Clear teamId when promoting to Admin
+      if (level === "Admin") {
+        updatePayload.teamId = null;
+      }
+      await updateAuthorizedUser(targetUser.email, updatePayload);
 
       toast.success(`${targetUser.name}'s permission updated to ${level}`);
-      await loadUsers();
+      await loadData();
     } catch {
       toast.error("Failed to update user permission");
+    }
+  };
+
+  const handleTeamChange = async (targetUser: AuthorizedUser, teamId: string) => {
+    try {
+      await updateAuthorizedUser(targetUser.email, { teamId });
+      toast.success(`${targetUser.name}'s team updated`);
+      await loadData();
+    } catch {
+      toast.error("Failed to update team");
     }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
-    // Prevent self-removal
     if (deleteTarget.email === user?.email) {
       toast.error("Cannot remove your own account");
       return;
@@ -147,26 +179,22 @@ function AdminUsersContent() {
     setDeleting(true);
     try {
       await removeAuthorizedUser(deleteTarget.email);
-
       toast.success(`${deleteTarget.name} removed`);
       setDeleteTarget(null);
-      await loadUsers();
+      await loadData();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to remove user"
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to remove user");
     } finally {
       setDeleting(false);
     }
   };
 
-  // Helper counts for navbar
+  // Counts
   const countAll = users.length;
   const countAdmin = users.filter((u) => (u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access")) === "Admin").length;
   const countHead = users.filter((u) => (u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access")) === "Head's Access").length;
   const countMember = users.filter((u) => (u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access")) === "Member's Access").length;
 
-  // Filtered users list based on selected navbar element
   const filteredUsers = users.filter((u) => {
     if (activeTab === "All") return true;
     const currentLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
@@ -199,7 +227,7 @@ function AdminUsersContent() {
         </Button>
       </div>
 
-      {/* Access Level Navbar / Sub-Navigation */}
+      {/* Access Level Navbar */}
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-muted/50 dark:bg-muted/30 rounded-xl border border-border/60 w-fit">
         <button
           onClick={() => setActiveTab("All")}
@@ -212,14 +240,8 @@ function AdminUsersContent() {
         >
           <Users className="h-3.5 w-3.5" />
           <span>All Users</span>
-          <Badge
-            variant={activeTab === "All" ? "default" : "secondary"}
-            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
-          >
-            {countAll}
-          </Badge>
+          <Badge variant={activeTab === "All" ? "default" : "secondary"} className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full">{countAll}</Badge>
         </button>
-
         <button
           onClick={() => setActiveTab("Admin")}
           className={cn(
@@ -231,14 +253,8 @@ function AdminUsersContent() {
         >
           <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
           <span>Admin</span>
-          <Badge
-            variant={activeTab === "Admin" ? "default" : "secondary"}
-            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
-          >
-            {countAdmin}
-          </Badge>
+          <Badge variant={activeTab === "Admin" ? "default" : "secondary"} className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full">{countAdmin}</Badge>
         </button>
-
         <button
           onClick={() => setActiveTab("Head's Access")}
           className={cn(
@@ -249,15 +265,9 @@ function AdminUsersContent() {
           )}
         >
           <UserCheck className="h-3.5 w-3.5 text-blue-500" />
-          <span>Head's Access</span>
-          <Badge
-            variant={activeTab === "Head's Access" ? "default" : "secondary"}
-            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
-          >
-            {countHead}
-          </Badge>
+          <span>Head&apos;s Access</span>
+          <Badge variant={activeTab === "Head's Access" ? "default" : "secondary"} className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full">{countHead}</Badge>
         </button>
-
         <button
           onClick={() => setActiveTab("Member's Access")}
           className={cn(
@@ -268,13 +278,8 @@ function AdminUsersContent() {
           )}
         >
           <Shield className="h-3.5 w-3.5 text-emerald-500" />
-          <span>Member's Access</span>
-          <Badge
-            variant={activeTab === "Member's Access" ? "default" : "secondary"}
-            className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full"
-          >
-            {countMember}
-          </Badge>
+          <span>Member&apos;s Access</span>
+          <Badge variant={activeTab === "Member's Access" ? "default" : "secondary"} className="px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center rounded-full">{countMember}</Badge>
         </button>
       </div>
 
@@ -287,14 +292,15 @@ function AdminUsersContent() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead className="text-center">Role</TableHead>
-                <TableHead className="text-center">Permission / Access Level</TableHead>
+                <TableHead className="text-center">Team</TableHead>
+                <TableHead className="text-center">Access Level</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
                     No users found for {activeTab === "All" ? "this group" : activeTab}.
                   </TableCell>
                 </TableRow>
@@ -306,35 +312,48 @@ function AdminUsersContent() {
                   return (
                     <TableRow key={u.email}>
                       <TableCell className="font-medium">{u.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {u.email}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
                       <TableCell className="text-center">
                         <RoleBadge level={currentAccess} />
                       </TableCell>
-                      <TableCell className="text-center flex justify-center py-2">
+                      <TableCell className="text-center">
+                        {currentAccess === "Admin" ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <Select
+                            value={u.teamId || ""}
+                            onValueChange={(val) => val && handleTeamChange(u, val)}
+                            disabled={isSelf}
+                          >
+                            <SelectTrigger className="w-36 h-8 text-xs mx-auto">
+                              <SelectValue placeholder="Select team" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teams.map((t) => (
+                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
                         <Select
                           value={currentAccess}
                           onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
                           disabled={isSelf}
                         >
-                          <SelectTrigger className="w-44 h-8 text-xs">
+                          <SelectTrigger className="w-44 h-8 text-xs mx-auto">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Admin">Admin</SelectItem>
-                            <SelectItem value="Head's Access">Head's Access</SelectItem>
-                            <SelectItem value="Member's Access">Member's Access</SelectItem>
+                            <SelectItem value="Head's Access">Head&apos;s Access</SelectItem>
+                            <SelectItem value="Member's Access">Member&apos;s Access</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteTarget(u)}
-                          disabled={isSelf}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(u)} disabled={isSelf}>
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </TableCell>
@@ -364,21 +383,18 @@ function AdminUsersContent() {
                       <span className="font-medium text-sm truncate">{u.name}</span>
                       <RoleBadge level={currentAccess} />
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 shrink-0"
-                      onClick={() => setDeleteTarget(u)}
-                      disabled={isSelf}
-                    >
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => setDeleteTarget(u)} disabled={isSelf}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {u.email}
-                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                  {u.teamId && (
+                    <p className="text-xs text-muted-foreground">
+                      Team: <span className="font-medium text-foreground">{teamNameMap.get(u.teamId) || u.teamId}</span>
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-muted-foreground">Access:</span>
+                    <span className="text-xs text-muted-foreground shrink-0">Access:</span>
                     <Select
                       value={currentAccess}
                       onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
@@ -389,11 +405,30 @@ function AdminUsersContent() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Head's Access">Head's Access</SelectItem>
-                        <SelectItem value="Member's Access">Member's Access</SelectItem>
+                        <SelectItem value="Head's Access">Head&apos;s Access</SelectItem>
+                        <SelectItem value="Member's Access">Member&apos;s Access</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {currentAccess !== "Admin" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0">Team:</span>
+                      <Select
+                        value={u.teamId || ""}
+                        onValueChange={(val) => val && handleTeamChange(u, val)}
+                        disabled={isSelf}
+                      >
+                        <SelectTrigger className="w-full h-8 text-xs">
+                          <SelectValue placeholder="Select team" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teams.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -410,47 +445,54 @@ function AdminUsersContent() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="user-email">Email *</Label>
-              <Input
-                id="user-email"
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="user@gmail.com"
-              />
+              <Input id="user-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="user@gmail.com" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="user-name">Name *</Label>
-              <Input
-                id="user-name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Full name"
-              />
+              <Input id="user-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="user-access">Access Level *</Label>
               <Select
                 value={newAccessLevel}
-                onValueChange={(val) => val && setNewAccessLevel(val as AccessLevel)}
+                onValueChange={(val) => {
+                  if (val) {
+                    setNewAccessLevel(val as AccessLevel);
+                    if (val === "Admin") setNewTeamId("");
+                  }
+                }}
               >
                 <SelectTrigger id="user-access" className="w-full">
                   <SelectValue placeholder="Select access level" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Head's Access">Head's Access</SelectItem>
-                  <SelectItem value="Member's Access">Member's Access</SelectItem>
+                  <SelectItem value="Head's Access">Head&apos;s Access</SelectItem>
+                  <SelectItem value="Member's Access">Member&apos;s Access</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {newAccessLevel !== "Admin" && (
+              <div className="space-y-2">
+                <Label htmlFor="user-team">Assigned Team *</Label>
+                <Select value={newTeamId} onValueChange={(val) => val && setNewTeamId(val)}>
+                  <SelectTrigger id="user-team" className="w-full">
+                    <SelectValue placeholder="Select team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
             <Button
               onClick={handleAdd}
-              disabled={adding || !newEmail.trim() || !newName.trim()}
+              disabled={adding || !newEmail.trim() || !newName.trim() || (newAccessLevel !== "Admin" && !newTeamId)}
             >
               {adding ? "Adding..." : "Add User"}
             </Button>
@@ -459,32 +501,17 @@ function AdminUsersContent() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove User</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Remove <strong>{deleteTarget?.name}</strong> (
-            {deleteTarget?.email}) from the authorized users list? They will
-            no longer be able to access the attendance tracker.
+            Remove <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email}) from the authorized users list? They will no longer be able to access the attendance tracker.
           </p>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteTarget(null)}
-              disabled={deleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting ? "Removing..." : "Remove"}
             </Button>
           </DialogFooter>

@@ -73,6 +73,7 @@ export interface AuthorizedUser {
   name: string;
   isAdmin: boolean;
   accessLevel?: AccessLevel;
+  teamId?: string; // assigned team (for Head / Member)
   addedAt: Date;
 }
 

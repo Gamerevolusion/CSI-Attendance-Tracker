@@ -16,10 +16,13 @@ import {
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase";
+import type { AccessLevel } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
+  accessLevel: AccessLevel;
+  teamId: string | null;
   loading: boolean;
   error: string | null;
   signIn: () => Promise<void>;
@@ -29,6 +32,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
+  accessLevel: "Member's Access",
+  teamId: null,
   loading: true,
   error: null,
   signIn: async () => {},
@@ -46,14 +51,23 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>("Member's Access");
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Check if a user's email is in the authorizedUsers allowlist
   const checkAuthorization = useCallback(
-    async (firebaseUser: User): Promise<{ authorized: boolean; admin: boolean }> => {
+    async (
+      firebaseUser: User
+    ): Promise<{
+      authorized: boolean;
+      admin: boolean;
+      accessLevel: AccessLevel;
+      teamId: string | null;
+    }> => {
       if (!firebaseUser.email) {
-        return { authorized: false, admin: false };
+        return { authorized: false, admin: false, accessLevel: "Member's Access", teamId: null };
       }
 
       try {
@@ -62,14 +76,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
 
         if (!userDoc.exists()) {
-          return { authorized: false, admin: false };
+          return { authorized: false, admin: false, accessLevel: "Member's Access", teamId: null };
         }
 
         const data = userDoc.data();
-        return { authorized: true, admin: data?.isAdmin === true };
+        const level: AccessLevel =
+          data?.accessLevel === "Admin" ||
+          data?.accessLevel === "Head's Access" ||
+          data?.accessLevel === "Member's Access"
+            ? data.accessLevel
+            : data?.isAdmin === true
+              ? "Admin"
+              : "Member's Access";
+
+        return {
+          authorized: true,
+          admin: level === "Admin" || data?.isAdmin === true,
+          accessLevel: level,
+          teamId: data?.teamId || null,
+        };
       } catch {
         // If Firestore rules block the read, the user is not authorized
-        return { authorized: false, admin: false };
+        return { authorized: false, admin: false, accessLevel: "Member's Access", teamId: null };
       }
     },
     []
@@ -79,17 +107,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const { authorized, admin } = await checkAuthorization(firebaseUser);
+        const result = await checkAuthorization(firebaseUser);
 
-        if (authorized) {
+        if (result.authorized) {
           setUser(firebaseUser);
-          setIsAdmin(admin);
+          setIsAdmin(result.admin);
+          setAccessLevel(result.accessLevel);
+          setTeamId(result.teamId);
           setError(null);
         } else {
           // Unauthorized — sign out immediately
           await firebaseSignOut(auth);
           setUser(null);
           setIsAdmin(false);
+          setAccessLevel("Member's Access");
+          setTeamId(null);
           setError(
             "You're not authorized for this committee tracker. Contact your team lead to be added."
           );
@@ -97,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
         setIsAdmin(false);
+        setAccessLevel("Member's Access");
+        setTeamId(null);
       }
       setLoading(false);
     });
@@ -110,18 +144,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
 
-      const { authorized, admin } = await checkAuthorization(result.user);
+      const authResult = await checkAuthorization(result.user);
 
-      if (!authorized) {
+      if (!authResult.authorized) {
         await firebaseSignOut(auth);
         setUser(null);
         setIsAdmin(false);
+        setAccessLevel("Member's Access");
+        setTeamId(null);
         setError(
           "You're not authorized for this committee tracker. Contact your team lead to be added."
         );
       } else {
         setUser(result.user);
-        setIsAdmin(admin);
+        setIsAdmin(authResult.admin);
+        setAccessLevel(authResult.accessLevel);
+        setTeamId(authResult.teamId);
       }
     } catch (err) {
       const message =
@@ -137,6 +175,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await firebaseSignOut(auth);
       setUser(null);
       setIsAdmin(false);
+      setAccessLevel("Member's Access");
+      setTeamId(null);
       setError(null);
     } catch (err) {
       const message =
@@ -146,7 +186,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, error, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ user, isAdmin, accessLevel, teamId, loading, error, signIn, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

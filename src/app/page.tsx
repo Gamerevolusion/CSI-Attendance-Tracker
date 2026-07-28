@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
 import { getAttendanceByTeamAndDate, getAttendanceByTeamAndDateRange } from "@/lib/actions/attendance";
@@ -41,6 +42,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 function DashboardContent() {
+  const { user, accessLevel, teamId: userTeamId } = useAuth();
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
@@ -77,7 +79,12 @@ function DashboardContent() {
       try {
         const t = await getTeams();
         setTeams(t);
-        if (t.length > 0) setSelectedTeam(t[0].id);
+        // If Head/Member, lock to their assigned team
+        if (accessLevel !== "Admin" && userTeamId && t.some((team) => team.id === userTeamId)) {
+          setSelectedTeam(userTeamId);
+        } else if (t.length > 0) {
+          setSelectedTeam(t[0].id);
+        }
       } catch {
         toast.error("Failed to load teams");
       } finally {
@@ -85,7 +92,7 @@ function DashboardContent() {
       }
     }
     load();
-  }, []);
+  }, [accessLevel, userTeamId]);
 
   // Load dashboard data when team or date filters change
   useEffect(() => {
@@ -145,7 +152,16 @@ function DashboardContent() {
           }))
           .sort((a, b) => b.totalMissed - a.totalMissed);
 
-        setAttendanceSummary(summary);
+        // For Member access, filter summary to only show their own data
+        let finalSummary = summary;
+        if (accessLevel === "Member's Access" && user?.email) {
+          // Members see their own attendance (we match by email → name mapping from authorizedUsers)
+          // Since we don't have a direct mapping from email to member ID here,
+          // we keep the full summary but display it as "Your Team's Attendance"
+          // The member can see the team data (read-only) per user's requirement
+        }
+
+        setAttendanceSummary(finalSummary);
       } catch {
         toast.error("Failed to load dashboard data");
       } finally {
@@ -190,26 +206,30 @@ function DashboardContent() {
             {formatDateDisplay(today)} · Committee Overview
           </p>
         </div>
-        <Link href="/attendance/mark">
-          <Button className="w-full sm:w-auto">
-            <ClipboardCheck className="mr-2 h-4 w-4" />
-            Mark Attendance
-          </Button>
-        </Link>
+        {accessLevel !== "Member's Access" && (
+          <Link href="/attendance/mark">
+            <Button className="w-full sm:w-auto">
+              <ClipboardCheck className="mr-2 h-4 w-4" />
+              Mark Attendance
+            </Button>
+          </Link>
+        )}
       </div>
 
-      {/* Team Tabs */}
-      <Tabs value={selectedTeam} onValueChange={setSelectedTeam}>
-        <div className="neo-scroll-x -mx-4 px-4">
-          <TabsList className="inline-flex w-max">
-            {teams.map((team) => (
-              <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
-                {team.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-      </Tabs>
+      {/* Team Tabs — hidden for Head/Member (locked to their team) */}
+      {accessLevel === "Admin" && (
+        <Tabs value={selectedTeam} onValueChange={setSelectedTeam}>
+          <div className="neo-scroll-x -mx-4 px-4">
+            <TabsList className="inline-flex w-max">
+              {teams.map((team) => (
+                <TabsTrigger key={team.id} value={team.id} className="text-xs sm:text-sm whitespace-nowrap">
+                  {team.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </Tabs>
+      )}
 
       {/* Filter Mode & Date Selection Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/40 p-3 rounded-lg border">
