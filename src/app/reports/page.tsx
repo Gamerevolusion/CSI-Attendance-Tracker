@@ -77,7 +77,8 @@ function ReportsContent() {
     Array.from(selectedTeamIds),
     dateFrom,
     dateTo,
-    teams
+    teams,
+    subjectMap
   );
 
   // Update preview data when report data loads

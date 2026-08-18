@@ -80,7 +80,8 @@ export function useReportData(
   selectedTeamIds: string[],
   dateFrom: Date,
   dateTo: Date,
-  teams: Team[]
+  teams: Team[],
+  subjectMap: Record<string, Subject> = {}
 ) {
   const startDate = dateToISTString(dateFrom);
   const endDate = dateToISTString(dateTo);
@@ -142,8 +143,8 @@ export function useReportData(
             sessionsRecorded: dates.size,
             subjectBreakdown: Object.entries(subjectMissed).map(
               ([subId, missed]) => ({
-                subjectName: subId,
-                facultyName: '—',
+                subjectName: subjectMap[subId]?.subjectName || subId,
+                facultyName: subjectMap[subId]?.facultyName || '—',
                 missed,
               })
             ),
