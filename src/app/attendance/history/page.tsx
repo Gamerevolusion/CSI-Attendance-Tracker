@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useAuthUser, useAuthPermissions } from "@/contexts/AuthContext";
 import { HeadRoute } from "@/components/HeadRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
 import {
@@ -38,17 +38,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { VirtualizedTable } from "@/components/ui/VirtualizedTable";
 import { CalendarIcon, Trash2, ArrowUpDown, History } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 function formatMarkedBy(markedBy: string): string {
   if (!markedBy) return "Admin";
@@ -62,7 +56,8 @@ function formatMarkedBy(markedBy: string): string {
 }
 
 function HistoryContent() {
-  const { isAdmin, accessLevel, teamId: userTeamId } = useAuth();
+  const { isAdmin } = useAuthUser();
+  const { accessLevel, teamId: userTeamId } = useAuthPermissions();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
@@ -362,13 +357,18 @@ function HistoryContent() {
             </p>
           </div>
         ) : (
-          <div>
-            {/* Desktop table */}
-            <div className="hidden sm:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
+          <>
+            {/* Desktop VirtualizedTable */}
+            <div className="hidden sm:block">
+              <VirtualizedTable
+                data={filtered}
+                rowKey={(row) => row.id}
+                rowHeight={52}
+                height={500}
+                columns={[
+                  {
+                    key: "date",
+                    header: (
                       <button
                         className="flex items-center gap-1 hover:text-foreground"
                         onClick={() => setSortAsc(!sortAsc)}
@@ -376,53 +376,74 @@ function HistoryContent() {
                         Date
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
-                    </TableHead>
-                    <TableHead>Member</TableHead>
-                    <TableHead className="text-center">Lectures Missed</TableHead>
-                    <TableHead>Marked By</TableHead>
-                    {isAdmin && (
-                      <TableHead className="text-right">Actions</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">
-                        {formatDateDisplay(record.date)}
-                      </TableCell>
-                      <TableCell>{record.memberName}</TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={`inline-flex items-center justify-center min-w-8 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            record.totalMissed === 0
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : record.totalMissed >= 3
-                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                              : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                          }`}
-                        >
-                          {record.totalMissed} / {record.lectureCount}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs font-medium">
-                        {formatMarkedBy(record.markedBy)}
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeleteTarget(record)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                    ),
+                    cell: (row: AttendanceRecord) => formatDateDisplay(row.date),
+                    width: 120,
+                    align: "left" as const,
+                  },
+                  {
+                    key: "member",
+                    header: "Member",
+                    cell: (row: AttendanceRecord) => row.memberName,
+                    width: 200,
+                    align: "left" as const,
+                  },
+                  {
+                    key: "missed",
+                    header: "Lectures Missed",
+                    cell: (row: AttendanceRecord) => (
+                      <span
+                        className={cn(
+                          "inline-flex items-center justify-center min-w-8 px-2 py-0.5 rounded-full text-xs font-semibold ",
+                          row.totalMissed === 0
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : row.totalMissed >= 3
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        )}
+                      >
+                        {row.totalMissed} / {row.lectureCount}
+                      </span>
+                    ),
+                    width: 140,
+                    align: "center" as const,
+                  },
+                  {
+                    key: "markedBy",
+                    header: "Marked By",
+                    cell: (row: AttendanceRecord) => (
+                      <span className="text-muted-foreground text-xs font-medium">
+                        {formatMarkedBy(row.markedBy)}
+                      </span>
+                    ),
+                    width: 140,
+                    align: "left" as const,
+                  },
+                  ...(isAdmin
+                    ? [
+                        {
+                          key: "actions",
+                          header: "Actions" as React.ReactNode,
+                          cell: (row: AttendanceRecord) => (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeleteTarget(row)}
+                              className="justify-end"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          ),
+                          width: 80,
+                          align: "right" as const,
+                        },
+                      ]
+                    : []),
+                ]}
+                emptyMessage="No attendance records found for this period"
+                loading={dataLoading}
+                className="rounded-lg border bg-card"
+              />
             </div>
 
             {/* Mobile cards */}
@@ -461,7 +482,7 @@ function HistoryContent() {
                 </div>
               ))}
             </div>
-          </div>
+          </>
         )}
       </div>
 

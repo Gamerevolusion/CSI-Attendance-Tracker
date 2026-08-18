@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuthUser, useAuthPermissions } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { getTeams, getTeamMembers } from "@/lib/actions/roster";
+import { getTeamMembers } from "@/lib/actions/roster";
 import { getEntriesByTeam } from "@/lib/actions/attendanceEntries";
-import { getCurriculums, getSubjects } from "@/lib/actions/curriculum";
 import { dateToISTString } from "@/lib/date-utils";
 import type { Team, ReportSummaryRow, Subject } from "@/types";
+import { useTeams, useCurriculums, useSubjectMap, useReportData } from "@/lib/hooks/useReports";
+import * as XLSX from 'xlsx';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
@@ -16,36 +17,23 @@ import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { VirtualizedTable } from "@/components/ui/VirtualizedTable";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  CalendarIcon,
-  Download,
-  FileText,
-  Loader2,
-  Eye,
-} from "lucide-react";
+import { CalendarIcon, Download, FileText, Loader2, Eye, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
 function ReportsContent() {
-  const { user, accessLevel, teamId: userTeamId } = useAuth();
-  const [teams, setTeams] = useState<Team[]>([]);
+  const { user } = useAuthUser();
+  const { accessLevel, teamId: userTeamId } = useAuthPermissions();
   const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Date range
   const [dateFrom, setDateFrom] = useState<Date>(() => {
@@ -62,37 +50,44 @@ function ReportsContent() {
     Map<string, { teamName: string; rows: ReportSummaryRow[] }>
   >(new Map());
 
-  // Subject lookup
+  // Subject lookup for display
   const [subjectMap, setSubjectMap] = useState<Record<string, Subject>>({});
 
+  // Use React Query hooks for data fetching
+  const { data: teams = [], isLoading: teamsLoading } = useTeams();
+  const { data: curriculums = [], isLoading: curriculumsLoading } = useCurriculums();
+  const { data: subjectMapData = {}, isLoading: subjectMapLoading } = useSubjectMap(curriculums);
+
+  // Update subject map when data loads
   useEffect(() => {
-    async function load() {
-      try {
-        const [t, curriculums] = await Promise.all([getTeams(), getCurriculums()]);
-        setTeams(t);
-
-        // Auto-select team for Head / Member
-        if (accessLevel !== "Admin" && userTeamId) {
-          setSelectedTeamIds(new Set([userTeamId]));
-        }
-
-        // Build subject map for display
-        const sMap: Record<string, Subject> = {};
-        for (const curr of curriculums) {
-          const subjects = await getSubjects(curr.id);
-          for (const sub of subjects) {
-            sMap[sub.id] = sub;
-          }
-        }
-        setSubjectMap(sMap);
-      } catch {
-        toast.error("Failed to load teams");
-      } finally {
-        setLoading(false);
-      }
+    if (Object.keys(subjectMapData).length > 0) {
+      setSubjectMap(subjectMapData);
     }
-    load();
-  }, [accessLevel, userTeamId]);
+  }, [subjectMapData]);
+
+  // Auto-select team for Head / Member
+  useEffect(() => {
+    if (accessLevel !== "Admin" && userTeamId && teams.length > 0) {
+      setSelectedTeamIds(new Set([userTeamId]));
+    }
+  }, [accessLevel, userTeamId, teams]);
+
+  // Report data hook
+  const { data: reportData, isLoading: reportLoading, refetch: refetchReport } = useReportData(
+    Array.from(selectedTeamIds),
+    dateFrom,
+    dateTo,
+    teams
+  );
+
+  // Update preview data when report data loads
+  useEffect(() => {
+    if (reportData) {
+      setPreviewData(reportData);
+    }
+  }, [reportData]);
+
+  const loading = teamsLoading || curriculumsLoading;
 
   const toggleTeam = (teamId: string) => {
     setSelectedTeamIds((prev) => {
@@ -119,83 +114,212 @@ function ReportsContent() {
       toast.error("Please select at least one team");
       return;
     }
-
     setPreviewing(true);
     try {
-      const startDate = dateToISTString(dateFrom);
-      const endDate = dateToISTString(dateTo);
-      const newPreview = new Map<
-        string,
-        { teamName: string; rows: ReportSummaryRow[] }
-      >();
-
-      for (const teamId of selectedTeamIds) {
-        const team = teams.find((t) => t.id === teamId);
-        if (!team) continue;
-
-        const [members, entries] = await Promise.all([
-          getTeamMembers(teamId, true),
-          getEntriesByTeam(teamId, startDate, endDate),
-        ]);
-
-        // Build summary per member with subject breakdown
-        const memberMap = new Map<
-          string,
-          ReportSummaryRow & {
-            dates: Set<string>;
-            subjectMissed: Record<string, number>;
-          }
-        >();
-
-        for (const m of members) {
-          memberMap.set(m.id, {
-            memberId: m.id,
-            memberName: m.name,
-            role: m.role,
-            year: m.year,
-            department: m.department,
-            totalMissed: 0,
-            sessionsRecorded: 0,
-            dates: new Set(),
-            subjectMissed: {},
-          });
-        }
-
-        for (const entry of entries) {
-          const member = memberMap.get(entry.memberId);
-          if (member) {
-            member.totalMissed += entry.missed;
-            member.dates.add(entry.date);
-
-            if (!member.subjectMissed[entry.subjectId]) {
-              member.subjectMissed[entry.subjectId] = 0;
-            }
-            member.subjectMissed[entry.subjectId] += entry.missed;
-          }
-        }
-
-        const rows: ReportSummaryRow[] = Array.from(memberMap.values()).map(
-          ({ dates, subjectMissed, ...rest }) => ({
-            ...rest,
-            sessionsRecorded: dates.size,
-            subjectBreakdown: Object.entries(subjectMissed).map(
-              ([subId, missed]) => ({
-                subjectName: subjectMap[subId]?.subjectName || subId,
-                facultyName: subjectMap[subId]?.facultyName || "—",
-                missed,
-              })
-            ),
-          })
-        );
-
-        newPreview.set(teamId, { teamName: team.name, rows });
-      }
-
-      setPreviewData(newPreview);
+      await refetchReport();
     } catch {
       toast.error("Failed to load report data");
     } finally {
       setPreviewing(false);
+    }
+  };
+
+  // Excel export helper
+  const generateExcelData = async () => {
+    const workbook = XLSX.utils.book_new();
+    const startDate = dateToISTString(dateFrom);
+    const endDate = dateToISTString(dateTo);
+
+    // Summary sheet
+    const summaryData: (string | number)[][] = [
+      ['CSI Attendance Report'],
+      [`Period: ${startDate} to ${endDate}`],
+      [`Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`],
+      [],
+      ['Team', 'Member Name', 'Year', 'Department', 'Role', 'Sessions Recorded', 'Total Missed Lectures', 'Status'],
+    ];
+
+    // Subject breakdown sheets data
+    const subjectBreakdownData: Record<string, (string | number)[][]> = {};
+
+    Array.from(previewData.entries()).forEach(([teamId, { teamName, rows }]) => {
+      rows.forEach((row) => {
+        const status = row.totalMissed === 0 ? 'Perfect Attendance' : 'Partially Absent';
+        summaryData.push([
+          teamName,
+          row.memberName,
+          row.year,
+          row.department,
+          row.role || 'Member',
+          row.sessionsRecorded,
+          row.totalMissed,
+          status,
+        ]);
+
+        // Collect subject breakdown data
+        if (row.subjectBreakdown && row.subjectBreakdown.length > 0) {
+          if (!subjectBreakdownData[teamName]) {
+            subjectBreakdownData[teamName] = [
+              ['Subject Breakdown: ' + teamName],
+              [`Period: ${startDate} to ${endDate}`],
+              [],
+              ['Member Name', 'Subject', 'Faculty', 'Missed Lectures'],
+            ];
+          }
+          row.subjectBreakdown.forEach((sub) => {
+            if (sub.missed > 0) {
+              subjectBreakdownData[teamName].push([
+                row.memberName,
+                sub.subjectName,
+                sub.facultyName || '—',
+                sub.missed,
+              ]);
+            }
+          });
+        }
+      });
+    });
+
+    // Add summary sheet
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    summarySheet['!cols'] = [
+      { wch: 25 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 18 }, { wch: 20 }, { wch: 22 },
+    ];
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+    // ── Date-wise Attendance Matrix per team ──
+    for (const teamId of selectedTeamIds) {
+      const team = teams.find((t) => t.id === teamId);
+      if (!team) continue;
+
+      // Fetch raw entries for this team
+      const [members, entries] = await Promise.all([
+        getTeamMembers(teamId, true),
+        getEntriesByTeam(teamId, startDate, endDate),
+      ]);
+
+      if (members.length === 0) continue;
+
+      // Collect all unique dates from entries, sorted
+      const allDates = Array.from(new Set(entries.map(e => e.date))).sort();
+      if (allDates.length === 0) continue;
+
+      // Build member → date → { totalMissed, subjectDetails }
+      const memberDateMap = new Map<string, {
+        name: string;
+        year: string;
+        dept: string;
+        dates: Map<string, { total: number; subjects: string[] }>;
+      }>();
+
+      for (const m of members) {
+        memberDateMap.set(m.id, {
+          name: m.name,
+          year: m.year,
+          dept: m.department,
+          dates: new Map(),
+        });
+      }
+
+      for (const entry of entries) {
+        const member = memberDateMap.get(entry.memberId);
+        if (!member) continue;
+        const existing = member.dates.get(entry.date);
+        const subName = subjectMap[entry.subjectId]?.subjectName || entry.subjectId;
+        if (existing) {
+          existing.total += entry.missed;
+          if (entry.missed > 0) existing.subjects.push(`${subName}(${entry.missed})`);
+        } else {
+          member.dates.set(entry.date, {
+            total: entry.missed,
+            subjects: entry.missed > 0 ? [`${subName}(${entry.missed})`] : [],
+          });
+        }
+      }
+
+      // Format date headers as "DD MMM"
+      const formatShort = (d: string) => {
+        const dt = new Date(d + 'T00:00:00');
+        return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      };
+
+      // Build date-wise sheet: Student Name | Year | Dept | Date1 | Date2 | ... | Total
+      const dateHeaders = allDates.map(formatShort);
+      const headerRow: (string | number)[] = ['Student Name', 'Year', 'Dept', ...dateHeaders, 'Total Missed'];
+
+      const dateSheetData: (string | number)[][] = [
+        [`Date-wise Attendance: ${team.name}`],
+        [`Period: ${startDate} to ${endDate}`],
+        [`Values show missed lectures per day (0 = present, blank = no record)`],
+        [],
+        headerRow,
+      ];
+
+      const sortedMembers = Array.from(memberDateMap.values())
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      for (const member of sortedMembers) {
+        let totalMissed = 0;
+        const row: (string | number)[] = [member.name, member.year, member.dept];
+        for (const date of allDates) {
+          const dayData = member.dates.get(date);
+          if (dayData) {
+            row.push(dayData.total);
+            totalMissed += dayData.total;
+          } else {
+            row.push('');
+          }
+        }
+        row.push(totalMissed);
+        dateSheetData.push(row);
+      }
+
+      const dateSheet = XLSX.utils.aoa_to_sheet(dateSheetData);
+      // Set column widths
+      const dateCols = [
+        { wch: 25 }, // Name
+        { wch: 8 },  // Year
+        { wch: 8 },  // Dept
+        ...allDates.map(() => ({ wch: 8 })),
+        { wch: 12 }, // Total
+      ];
+      dateSheet['!cols'] = dateCols;
+
+      const safeSheetName = `${team.name} Daily`.substring(0, 31).replace(/[\\/*?:[\]]/g, '');
+      XLSX.utils.book_append_sheet(workbook, dateSheet, safeSheetName);
+    }
+
+    // Add subject breakdown sheets
+    Object.entries(subjectBreakdownData).forEach(([teamName, data]) => {
+      const sheet = XLSX.utils.aoa_to_sheet(data);
+      sheet['!cols'] = [
+        { wch: 25 }, { wch: 40 }, { wch: 25 }, { wch: 18 },
+      ];
+      const safeSheetName = `${teamName} Subjects`.substring(0, 31).replace(/[\\/*?:[\]]/g, '');
+      XLSX.utils.book_append_sheet(workbook, sheet, safeSheetName);
+    });
+
+    return workbook;
+  };
+
+  const handleDownloadExcel = async () => {
+    if (selectedTeamIds.size === 0) {
+      toast.error("Please select at least one team");
+      return;
+    }
+
+    setExportingExcel(true);
+    try {
+      const workbook = await generateExcelData();
+      const fileName = `attendance-report_${dateToISTString(dateFrom)}_${dateToISTString(dateTo)}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success("Excel file downloaded successfully");
+    } catch (err) {
+      console.error("Excel generation error:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to generate Excel report");
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -495,6 +619,106 @@ function ReportsContent() {
             },
           });
         }
+
+        // ── Date-wise Attendance Matrix ──
+        // Collect unique dates from entries, sorted
+        const allDates = Array.from(new Set(entries.map(e => e.date))).sort();
+
+        if (allDates.length > 0 && members.length > 0) {
+          // Build member → date → totalMissed
+          const memberDateMissed = new Map<string, Map<string, number>>();
+          for (const m of members) {
+            memberDateMissed.set(m.id, new Map());
+          }
+          for (const entry of entries) {
+            const mMap = memberDateMissed.get(entry.memberId);
+            if (mMap) {
+              mMap.set(entry.date, (mMap.get(entry.date) || 0) + entry.missed);
+            }
+          }
+
+          // Format date headers as "DD\nMMM"
+          const formatShort = (d: string) => {
+            const dt = new Date(d + 'T00:00:00');
+            const day = dt.toLocaleDateString('en-IN', { day: '2-digit' });
+            const mon = dt.toLocaleDateString('en-IN', { month: 'short' });
+            return `${day}\n${mon}`;
+          };
+
+          // For PDF, limit columns to fit page. Use landscape page if many dates
+          const useLandscape = allDates.length > 15;
+
+          doc.addPage(useLandscape ? "landscape" : "portrait");
+
+          // Section header
+          doc.setFillColor(26, 43, 76);
+          doc.rect(0, 0, useLandscape ? 297 : 210, 14, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(255, 255, 255);
+          doc.text(`DATE-WISE ATTENDANCE — ${team.name}`, 14, 9);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(203, 213, 225);
+          doc.text(`Period: ${startDate} to ${endDate}  |  Values = Missed Lectures (0 = Present, — = No Record)`, 14, 12.5);
+
+          const dateHead = ["Student Name", ...allDates.map(formatShort), "Total"];
+
+          const dateBody = members
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(m => {
+              const mMap = memberDateMissed.get(m.id)!;
+              let total = 0;
+              const cells = allDates.map(d => {
+                const missed = mMap.get(d);
+                if (missed !== undefined) {
+                  total += missed;
+                  return String(missed);
+                }
+                return "—";
+              });
+              return [m.name, ...cells, String(total)];
+            });
+
+          autoTable(doc, {
+            startY: 18,
+            head: [dateHead],
+            body: dateBody,
+            theme: "grid",
+            headStyles: {
+              fillColor: [30, 58, 95],
+              textColor: [255, 255, 255],
+              fontStyle: "bold",
+              fontSize: 6.5,
+              cellPadding: 2,
+              halign: "center",
+              valign: "middle",
+            },
+            bodyStyles: {
+              fontSize: 7,
+              cellPadding: 1.8,
+              textColor: [30, 41, 59],
+              halign: "center",
+            },
+            columnStyles: {
+              0: { halign: "left", fontStyle: "bold", cellWidth: 35 },
+              [allDates.length + 1]: { fontStyle: "bold", fillColor: [248, 250, 252] },
+            },
+            didParseCell: (data) => {
+              if (data.section === "body" && data.column.index > 0 && data.column.index <= allDates.length) {
+                const val = String(data.cell.raw);
+                if (val === "0") {
+                  data.cell.styles.textColor = [21, 128, 61]; // green
+                } else if (val !== "—" && parseInt(val) > 0) {
+                  data.cell.styles.textColor = [185, 28, 28]; // red
+                  data.cell.styles.fontStyle = "bold";
+                } else {
+                  data.cell.styles.textColor = [180, 180, 180]; // gray for no record
+                }
+              }
+            },
+          });
+        }
       }
 
       // Footer page numbers and timestamp on every page
@@ -542,7 +766,7 @@ function ReportsContent() {
           Reports
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Generate per-subject attendance reports and export as PDF
+          Generate per-subject attendance reports and export as PDF or Excel
         </p>
       </div>
 
@@ -629,8 +853,8 @@ function ReportsContent() {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={handlePreview} disabled={previewing}>
-              {previewing ? (
+            <Button variant="outline" className="w-full sm:w-auto" onClick={handlePreview} disabled={previewing || reportLoading}>
+              {previewing || reportLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Eye className="mr-2 h-4 w-4" />
@@ -648,6 +872,18 @@ function ReportsContent() {
                 <Download className="mr-2 h-4 w-4" />
               )}
               Download PDF
+            </Button>
+            <Button
+              className={`w-full sm:w-auto ${exportingExcel ? "animate-shimmer-sweep" : ""}`}
+              onClick={handleDownloadExcel}
+              disabled={exportingExcel}
+            >
+              {exportingExcel ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+              )}
+              Download Excel
             </Button>
           </div>
         </CardContent>
@@ -694,28 +930,37 @@ function ReportsContent() {
                           </div>
 
                           {row.subjectBreakdown && row.subjectBreakdown.length > 0 ? (
-                            <div className="overflow-x-auto">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="text-xs">Subject</TableHead>
-                                    <TableHead className="text-xs">Faculty</TableHead>
-                                    <TableHead className="text-xs text-center">Missed</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {row.subjectBreakdown.map((sub, i) => (
-                                    <TableRow key={i}>
-                                      <TableCell className="text-xs">{sub.subjectName}</TableCell>
-                                      <TableCell className="text-xs text-muted-foreground">{sub.facultyName}</TableCell>
-                                      <TableCell className="text-xs text-center font-semibold">
-                                        {sub.missed}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
+                            <VirtualizedTable
+                              data={row.subjectBreakdown}
+                              rowKey={(row, index) => index.toString()}
+                              rowHeight={40}
+                              height={Math.min(300, row.subjectBreakdown.length * 40 + 50)}
+                              columns={[
+                                {
+                                  key: "subjectName",
+                                  header: "Subject",
+                                  cell: (sub) => <span className="text-xs">{sub.subjectName}</span>,
+                                  width: 200,
+                                  align: "left",
+                                },
+                                {
+                                  key: "facultyName",
+                                  header: "Faculty",
+                                  cell: (sub) => <span className="text-xs text-muted-foreground">{sub.facultyName}</span>,
+                                  width: 150,
+                                  align: "left",
+                                },
+                                {
+                                  key: "missed",
+                                  header: "Missed",
+                                  cell: (sub) => <span className="text-xs text-center font-semibold">{sub.missed}</span>,
+                                  width: 80,
+                                  align: "center",
+                                },
+                              ]}
+                              emptyMessage="No subject breakdown"
+                              className="rounded-lg border bg-card"
+                            />
                           ) : (
                             <p className="text-xs text-muted-foreground">
                               {row.sessionsRecorded} day{row.sessionsRecorded !== 1 ? "s" : ""} recorded

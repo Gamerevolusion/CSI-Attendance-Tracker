@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuthUser, useAuthPermissions } from "@/contexts/AuthContext";
 import { HeadRoute } from "@/components/HeadRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
 import { getCurriculums, getSubjects } from "@/lib/actions/curriculum";
@@ -22,7 +22,8 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth } from "date-fns";
 const LAST_TEAM_KEY = "csi-last-team";
 
 function MarkAttendanceContent() {
-  const { user, accessLevel, teamId: userTeamId } = useAuth();
+  const { user } = useAuthUser();
+  const { accessLevel, teamId: userTeamId } = useAuthPermissions();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [loading, setLoading] = useState(true);
@@ -56,20 +57,13 @@ function MarkAttendanceContent() {
     }
   }, [dateFrom, dateTo]);
 
-  // Load teams
+  // Load teams and curriculums (lightweight)
   useEffect(() => {
     async function load() {
       try {
         const [t, c] = await Promise.all([getTeams(), getCurriculums()]);
         setTeams(t);
         setCurriculums(c);
-
-        // Preload subjects for all curriculums
-        const subMap: Record<string, Subject[]> = {};
-        for (const curr of c) {
-          subMap[curr.id] = await getSubjects(curr.id);
-        }
-        setSubjectsByCurriculum(subMap);
 
         // If Head, lock to their assigned team
         if (accessLevel === "Head's Access" && userTeamId && t.some((team) => team.id === userTeamId)) {
@@ -91,6 +85,30 @@ function MarkAttendanceContent() {
     load();
   }, [accessLevel, userTeamId]);
 
+  // Load subjects for the loaded members' year/department combinations
+  useEffect(() => {
+    if (!members.length || !curriculums.length) return;
+
+    async function loadSubjects() {
+      try {
+        // Collect unique curriculum IDs from members
+        const currIds = new Set(members.map(m => `${m.year}_${m.department}`));
+        
+        for (const currId of currIds) {
+          if (subjectsByCurriculum[currId]) continue; // already loaded
+          const subjects = await getSubjects(currId);
+          setSubjectsByCurriculum(prev => ({
+            ...prev,
+            [currId]: subjects,
+          }));
+        }
+      } catch {
+        toast.error("Failed to load subjects");
+      }
+    }
+    loadSubjects();
+  }, [members, curriculums]);
+
   // Load members + entries when team or date range changes
   useEffect(() => {
     if (!selectedTeam || dates.length === 0) return;
@@ -101,7 +119,7 @@ function MarkAttendanceContent() {
       try {
         const startDate = dates[0];
         const endDate = dates[dates.length - 1];
-        
+
         let teamMembers: any[] = [];
         try {
           teamMembers = await getTeamMembers(selectedTeam);

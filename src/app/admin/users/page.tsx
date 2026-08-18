@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useAuthUser } from "@/contexts/AuthContext";
 import { AdminRoute } from "@/components/AdminRoute";
 import type { AuthorizedUser, AccessLevel, Team } from "@/types";
 import {
@@ -31,15 +31,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus, Trash2, ShieldCheck, Shield, UserCheck, Users } from "lucide-react";
+import { VirtualizedTable } from "@/components/ui/VirtualizedTable";
+import { Plus, Trash2, ShieldCheck, Shield, UserCheck, Users, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 
 type FilterTab = "All" | AccessLevel;
@@ -70,7 +63,7 @@ function RoleBadge({ level }: { level?: AccessLevel }) {
 }
 
 function AdminUsersContent() {
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   const [users, setUsers] = useState<AuthorizedUser[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +71,7 @@ function AdminUsersContent() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AuthorizedUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortAsc, setSortAsc] = useState(false);
 
   // Add form state
   const [newEmail, setNewEmail] = useState("");
@@ -284,87 +278,121 @@ function AdminUsersContent() {
       </div>
 
       <div className="rounded-lg border bg-card">
-        {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-center">Role</TableHead>
-                <TableHead className="text-center">Team</TableHead>
-                <TableHead className="text-center">Access Level</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
-                    No users found for {activeTab === "All" ? "this group" : activeTab}.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredUsers.map((u) => {
-                  const currentAccess: AccessLevel = u.accessLevel || (u.isAdmin ? "Admin" : "Member's Access");
-                  const isSelf = u.email === user?.email;
-
+        {/* Desktop VirtualizedTable */}
+        <div className="hidden sm:block">
+          <VirtualizedTable
+            data={filteredUsers}
+            rowKey={(row) => row.email}
+            rowHeight={52}
+            height={500}
+            columns={[
+              {
+                key: "name",
+                header: (
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground"
+                    onClick={() => setSortAsc(!sortAsc)}
+                  >
+                    Name
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                  </button>
+                ),
+                cell: (row) => <span className="font-medium">{row.name}</span>,
+                width: 200,
+                align: "left",
+              },
+              {
+                key: "email",
+                header: "Email",
+                cell: (row) => <span className="text-muted-foreground text-sm">{row.email}</span>,
+                width: 250,
+                align: "left",
+              },
+              {
+                key: "role",
+                header: "Role",
+                cell: (row) => (
+                  <RoleBadge level={row.accessLevel || (row.isAdmin ? "Admin" : "Member's Access")} />
+                ),
+                width: 140,
+                align: "center",
+              },
+              {
+                key: "team",
+                header: "Team",
+                cell: (row) => {
+                  const currentAccess = row.accessLevel || (row.isAdmin ? "Admin" : "Member's Access");
+                  const isSelf = row.email === user?.email;
+                  if (currentAccess === "Admin") {
+                    return <span className="text-xs text-muted-foreground">—</span>;
+                  }
                   return (
-                    <TableRow key={u.email}>
-                      <TableCell className="font-medium">{u.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
-                      <TableCell className="text-center">
-                        <RoleBadge level={currentAccess} />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {currentAccess === "Admin" ? (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        ) : (
-                          <Select
-                            value={u.teamId || ""}
-                            onValueChange={(val) => val && handleTeamChange(u, val)}
-                            disabled={isSelf}
-                          >
-                            <SelectTrigger className="w-36 h-8 text-xs mx-auto">
-                              <SelectValue placeholder="Select team">
-                                {teamNameMap.get(u.teamId || "")}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {teams.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Select
-                          value={currentAccess}
-                          onValueChange={(val) => val && handleAccessLevelChange(u, val as AccessLevel)}
-                          disabled={isSelf}
-                        >
-                          <SelectTrigger className="w-44 h-8 text-xs mx-auto">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Admin">Admin</SelectItem>
-                            <SelectItem value="Head's Access">Head&apos;s Access</SelectItem>
-                            <SelectItem value="Member's Access">Member&apos;s Access</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(u)} disabled={isSelf}>
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                    <Select
+                      value={row.teamId || ""}
+                      onValueChange={(val) => val && handleTeamChange(row, val)}
+                      disabled={isSelf}
+                    >
+                      <SelectTrigger className="w-36 h-8 text-xs mx-auto">
+                        <SelectValue placeholder="Select team">
+                          {teamNameMap.get(row.teamId || "")}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teams.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   );
-                })
-              )}
-            </TableBody>
-          </Table>
+                },
+                width: 160,
+                align: "center",
+              },
+              {
+                key: "accessLevel",
+                header: "Access Level",
+                cell: (row) => {
+                  const currentAccess = row.accessLevel || (row.isAdmin ? "Admin" : "Member's Access");
+                  const isSelf = row.email === user?.email;
+                  return (
+                    <Select
+                      value={currentAccess}
+                      onValueChange={(val) => val && handleAccessLevelChange(row, val as AccessLevel)}
+                      disabled={isSelf}
+                    >
+                      <SelectTrigger className="w-44 h-8 text-xs mx-auto">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                        <SelectItem value="Head's Access">Head&apos;s Access</SelectItem>
+                        <SelectItem value="Member's Access">Member&apos;s Access</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  );
+                },
+                width: 140,
+                align: "center",
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                cell: (row) => {
+                  const isSelf = row.email === user?.email;
+                  return (
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(row)} disabled={isSelf} className="justify-end">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  );
+                },
+                width: 80,
+                align: "right",
+              },
+            ]}
+            emptyMessage={`No users found for ${activeTab === "All" ? "this group" : activeTab}.`}
+            loading={loading}
+            className="rounded-lg border bg-card"
+          />
         </div>
 
         {/* Mobile cards */}

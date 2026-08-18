@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { Toaster } from "sonner";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -37,8 +38,10 @@ export default function RootLayout({
         className={`${inter.variable} ${plusJakarta.variable} antialiased`}
       >
         <AuthProvider>
-          <AppShell>{children}</AppShell>
-          <Toaster position="bottom-right" richColors closeButton />
+          <QueryProvider>
+            <AppShell>{children}</AppShell>
+            <Toaster position="bottom-right" richColors closeButton />
+          </QueryProvider>
         </AuthProvider>
       </body>
     </html>

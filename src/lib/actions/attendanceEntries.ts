@@ -64,7 +64,7 @@ export async function saveAttendanceEntries(
 
 /**
  * Get all entries for a specific member within a date range.
- * Queries by memberId only (single-field automatic index) and filters dates in memory to avoid requiring a composite index.
+ * Uses composite index on (memberId, date) for efficient querying.
  */
 export async function getEntriesByMember(
   memberId: string,
@@ -73,22 +73,22 @@ export async function getEntriesByMember(
 ): Promise<AttendanceEntry[]> {
   const q = query(
     collection(db, "attendanceEntries"),
-    where("memberId", "==", memberId)
+    where("memberId", "==", memberId),
+    where("date", ">=", startDate),
+    where("date", "<=", endDate)
   );
 
   const snapshot = await getDocs(q);
-  const entries = snapshot.docs.map((d) => ({
+  return snapshot.docs.map((d) => ({
     id: d.id,
     ...d.data(),
     updatedAt: d.data().updatedAt?.toDate() || new Date(),
   })) as AttendanceEntry[];
-
-  return entries.filter((e) => e.date >= startDate && e.date <= endDate);
 }
 
 /**
  * Get all entries for a team within a date range.
- * Queries by teamId only (single-field automatic index) and filters dates in memory to avoid requiring a composite index.
+ * Uses composite index on (teamId, date) for efficient querying.
  */
 export async function getEntriesByTeam(
   teamId: string,
@@ -97,17 +97,17 @@ export async function getEntriesByTeam(
 ): Promise<AttendanceEntry[]> {
   const q = query(
     collection(db, "attendanceEntries"),
-    where("teamId", "==", teamId)
+    where("teamId", "==", teamId),
+    where("date", ">=", startDate),
+    where("date", "<=", endDate)
   );
 
   const snapshot = await getDocs(q);
-  const entries = snapshot.docs.map((d) => ({
+  return snapshot.docs.map((d) => ({
     id: d.id,
     ...d.data(),
     updatedAt: d.data().updatedAt?.toDate() || new Date(),
   })) as AttendanceEntry[];
-
-  return entries.filter((e) => e.date >= startDate && e.date <= endDate);
 }
 
 /**

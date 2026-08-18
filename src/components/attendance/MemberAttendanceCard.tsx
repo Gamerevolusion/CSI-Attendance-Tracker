@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useReducer, useMemo, useCallback } from "react";
+import { produce } from "immer";
 import type { Member, Subject, CellData, CellState, AttendanceEntry } from "@/types";
 import type { EntryWrite } from "@/lib/actions/attendanceEntries";
 import { saveAttendanceEntries } from "@/lib/actions/attendanceEntries";
@@ -17,12 +18,20 @@ interface MemberAttendanceCardProps {
   markedByEmail: string;
 }
 
+// Action types for the reducer
+type CellAction =
+  | { type: "CYCLE_CELL"; subjectId: string; date: string }
+  | { type: "SET_MISSED_COUNT"; subjectId: string; date: string; count: number }
+  | { type: "SET_NOTE"; subjectId: string; date: string; note: string }
+  | { type: "MARK_CLEAN"; subjectId: string; date: string }
+  | { type: "MARK_ALL_CLEAN" }
+  | { type: "RESET"; cells: Record<string, Record<string, CellData>> };
+
 function buildCells(
   subjects: Subject[],
   dates: string[],
   existingEntries: AttendanceEntry[]
 ): Record<string, Record<string, CellData>> {
-  // Index existing entries by subjectId_date
   const entryMap = new Map<string, AttendanceEntry>();
   for (const e of existingEntries) {
     entryMap.set(`${e.subjectId}_${e.date}`, e);
@@ -53,6 +62,76 @@ function buildCells(
   return cells;
 }
 
+function cellsReducer(
+  state: Record<string, Record<string, CellData>>,
+  action: CellAction
+): Record<string, Record<string, CellData>> {
+  return produce(state, (draft) => {
+    switch (action.type) {
+      case "CYCLE_CELL": {
+        const cell = draft[action.subjectId]?.[action.date];
+        if (!cell) return;
+
+        const nextState: Record<CellState, CellState> = {
+          "no-class": "present",
+          present: "missed",
+          missed: "no-class",
+        };
+
+        cell.state = nextState[cell.state];
+        if (cell.state === "missed") {
+          cell.missed = cell.missed || 1;
+        } else if (cell.state === "present") {
+          cell.missed = 0;
+        } else {
+          cell.missed = 0;
+          cell.note = null;
+        }
+        cell.dirty = true;
+        break;
+      }
+
+      case "SET_MISSED_COUNT": {
+        const cell = draft[action.subjectId]?.[action.date];
+        if (!cell || cell.state !== "missed") return;
+        cell.missed = Math.max(1, action.count);
+        cell.dirty = true;
+        break;
+      }
+
+      case "SET_NOTE": {
+        const cell = draft[action.subjectId]?.[action.date];
+        if (!cell || cell.state !== "missed") return;
+        cell.note = action.note || null;
+        cell.dirty = true;
+        break;
+      }
+
+      case "MARK_CLEAN": {
+        const cell = draft[action.subjectId]?.[action.date];
+        if (cell) {
+          cell.dirty = false;
+        }
+        break;
+      }
+
+      case "MARK_ALL_CLEAN": {
+        for (const subId of Object.keys(draft)) {
+          for (const date of Object.keys(draft[subId])) {
+            if (draft[subId][date].dirty) {
+              draft[subId][date].dirty = false;
+            }
+          }
+        }
+        break;
+      }
+
+      case "RESET":
+        return action.cells;
+    }
+  });
+}
+
 export function MemberAttendanceCard({
   member,
   teamId,
@@ -63,7 +142,9 @@ export function MemberAttendanceCard({
 }: MemberAttendanceCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [cells, setCells] = useState(() =>
+
+  // Use reducer with Immer for granular state updates
+  const [cells, dispatch] = useReducer(cellsReducer, null, () =>
     buildCells(subjects, dates, existingEntries)
   );
 
@@ -97,54 +178,27 @@ export function MemberAttendanceCard({
     return false;
   }, [cells]);
 
-  const cycleCell = (subjectId: string, date: string) => {
-    setCells((prev) => {
-      const newCells = { ...prev };
-      const subCells = { ...newCells[subjectId] };
-      const cell = { ...subCells[date] };
+  // Memoized action dispatchers
+  const cycleCell = useCallback(
+    (subjectId: string, date: string) => {
+      dispatch({ type: "CYCLE_CELL", subjectId, date });
+    },
+    []
+  );
 
-      const nextState: Record<CellState, CellState> = {
-        "no-class": "present",
-        present: "missed",
-        missed: "no-class",
-      };
+  const updateMissedCount = useCallback(
+    (subjectId: string, date: string, count: number) => {
+      dispatch({ type: "SET_MISSED_COUNT", subjectId, date, count });
+    },
+    []
+  );
 
-      cell.state = nextState[cell.state];
-      if (cell.state === "missed") {
-        cell.missed = cell.missed || 1;
-      } else if (cell.state === "present") {
-        cell.missed = 0;
-      } else {
-        cell.missed = 0;
-        cell.note = null;
-      }
-      cell.dirty = true;
-
-      subCells[date] = cell;
-      newCells[subjectId] = subCells;
-      return newCells;
-    });
-  };
-
-  const updateMissedCount = (subjectId: string, date: string, count: number) => {
-    setCells((prev) => {
-      const newCells = { ...prev };
-      const subCells = { ...newCells[subjectId] };
-      subCells[date] = { ...subCells[date], missed: Math.max(1, count), dirty: true };
-      newCells[subjectId] = subCells;
-      return newCells;
-    });
-  };
-
-  const updateNote = (subjectId: string, date: string, note: string) => {
-    setCells((prev) => {
-      const newCells = { ...prev };
-      const subCells = { ...newCells[subjectId] };
-      subCells[date] = { ...subCells[date], note: note || null, dirty: true };
-      newCells[subjectId] = subCells;
-      return newCells;
-    });
-  };
+  const updateNote = useCallback(
+    (subjectId: string, date: string, note: string) => {
+      dispatch({ type: "SET_NOTE", subjectId, date, note });
+    },
+    []
+  );
 
   const handleSave = async () => {
     setSaving(true);
@@ -160,7 +214,6 @@ export function MemberAttendanceCard({
           const docId = `${member.id}_${subject.id}_${date}`;
 
           if (cell.state === "no-class") {
-            // Check if there was an existing entry — if so, delete it
             const hadEntry = existingEntries.some(
               (e) => e.subjectId === subject.id && e.date === date
             );
@@ -215,20 +268,8 @@ export function MemberAttendanceCard({
         }
       }
 
-      // Mark all cells as not dirty
-      setCells((prev) => {
-        const newCells = { ...prev };
-        for (const subId of Object.keys(newCells)) {
-          const subCells = { ...newCells[subId] };
-          for (const date of Object.keys(subCells)) {
-            if (subCells[date].dirty) {
-              subCells[date] = { ...subCells[date], dirty: false };
-            }
-          }
-          newCells[subId] = subCells;
-        }
-        return newCells;
-      });
+      // Mark all cells as not dirty using reducer
+      dispatch({ type: "MARK_ALL_CLEAN" });
 
       toast.success(`Saved attendance for ${member.name}`);
     } catch {
@@ -397,8 +438,8 @@ export function MemberAttendanceCard({
                   <tr>
                     <td
                       className="text-xs font-bold py-2.5 px-3 sticky left-0 z-10"
-                      style={{ 
-                        background: "var(--neo-bg)", 
+                      style={{
+                        background: "var(--neo-bg)",
                         color: "var(--neo-text)",
                         borderTop: "2px solid var(--neo-grid-line)"
                       }}

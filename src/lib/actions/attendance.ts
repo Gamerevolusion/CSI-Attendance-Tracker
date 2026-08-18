@@ -76,6 +76,7 @@ export async function getAttendanceByTeamAndDate(
 
 /**
  * Get attendance records for a team within a date range.
+ * Uses composite index on (teamId, date) for efficient querying.
  */
 export async function getAttendanceByTeamAndDateRange(
   teamId: string,

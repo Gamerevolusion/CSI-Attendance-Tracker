@@ -4,7 +4,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuthUser, useAuthPermissions, useAuthState } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -49,7 +49,9 @@ function hasAccess(
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, isAdmin, accessLevel, signOut } = useAuth();
+  const { user, isAdmin } = useAuthUser();
+  const { accessLevel } = useAuthPermissions();
+  const { signOut } = useAuthState();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
