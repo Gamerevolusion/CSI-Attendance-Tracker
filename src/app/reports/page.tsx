@@ -8,7 +8,8 @@ import { getEntriesByTeam } from "@/lib/actions/attendanceEntries";
 import { dateToISTString } from "@/lib/date-utils";
 import type { Team, ReportSummaryRow, Subject } from "@/types";
 import { useTeams, useCurriculums, useSubjectMap, useReportData } from "@/lib/hooks/useReports";
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
@@ -125,180 +126,326 @@ function ReportsContent() {
     }
   };
 
+  // ── Styling constants ──
+  const NAVY = 'FF1A2B4C';
+  const TEAL = 'FF0F766E';
+  const LIGHT_BG = 'FFF8FAFC';
+  const BORDER_COLOR = 'FFE2E8F0';
+  const GREEN_BG = 'FFDCFCE7';
+  const GREEN_TEXT = 'FF15803D';
+  const RED_BG = 'FFFEE2E2';
+  const RED_TEXT = 'FFB91C1C';
+  const AMBER_BG = 'FFFEF3C7';
+  const AMBER_TEXT = 'FF92400E';
+
+  const thinBorder: Partial<ExcelJS.Borders> = {
+    top: { style: 'thin', color: { argb: BORDER_COLOR } },
+    bottom: { style: 'thin', color: { argb: BORDER_COLOR } },
+    left: { style: 'thin', color: { argb: BORDER_COLOR } },
+    right: { style: 'thin', color: { argb: BORDER_COLOR } },
+  };
+
+  const headerFill: ExcelJS.FillPattern = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+  const headerFont: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+  const tealFill: ExcelJS.FillPattern = { type: 'pattern', pattern: 'solid', fgColor: { argb: TEAL } };
+
+  const applyHeaderStyle = (row: ExcelJS.Row, fill: ExcelJS.FillPattern = headerFill) => {
+    row.eachCell((cell) => {
+      cell.fill = fill;
+      cell.font = headerFont;
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = thinBorder;
+    });
+    row.height = 24;
+  };
+
   // Excel export helper
   const generateExcelData = async () => {
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'CSI Attendance Portal';
+    workbook.created = new Date();
+
     const startDate = dateToISTString(dateFrom);
     const endDate = dateToISTString(dateTo);
+    const genDate = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
-    // Summary sheet
-    const summaryData: (string | number)[][] = [
-      ['CSI Attendance Report'],
-      [`Period: ${startDate} to ${endDate}`],
-      [`Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`],
-      [],
-      ['Team', 'Member Name', 'Year', 'Department', 'Role', 'Sessions Recorded', 'Total Missed Lectures', 'Status'],
+    // ═══════════════════════════════════════════
+    // SHEET 1: Summary
+    // ═══════════════════════════════════════════
+    const summarySheet = workbook.addWorksheet('Summary', {
+      views: [{ state: 'frozen', ySplit: 5 }],
+    });
+
+    // Title block
+    summarySheet.mergeCells('A1:H1');
+    const titleCell = summarySheet.getCell('A1');
+    titleCell.value = 'CSI ATTENDANCE REPORT';
+    titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = headerFill;
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    summarySheet.getRow(1).height = 30;
+
+    summarySheet.mergeCells('A2:H2');
+    const periodCell = summarySheet.getCell('A2');
+    periodCell.value = `Period: ${startDate} to ${endDate}  |  Generated: ${genDate}`;
+    periodCell.font = { size: 9, italic: true, color: { argb: 'FF64748B' } };
+    periodCell.alignment = { horizontal: 'center' };
+    periodCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+
+    // Empty row 3-4
+    summarySheet.getRow(3).height = 6;
+    summarySheet.getRow(4).height = 6;
+
+    // Header row
+    const summaryHeaders = ['Team', 'Member Name', 'Year', 'Department', 'Role', 'Sessions', 'Missed Lectures', 'Status'];
+    const summaryHeaderRow = summarySheet.getRow(5);
+    summaryHeaders.forEach((h, i) => { summaryHeaderRow.getCell(i + 1).value = h; });
+    applyHeaderStyle(summaryHeaderRow);
+    summaryHeaderRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+    summaryHeaderRow.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+
+    // Column widths
+    summarySheet.columns = [
+      { width: 22 }, { width: 24 }, { width: 10 }, { width: 14 },
+      { width: 14 }, { width: 12 }, { width: 18 }, { width: 20 },
     ];
 
-    // Subject breakdown sheets data
-    const subjectBreakdownData: Record<string, (string | number)[][]> = {};
-
-    Array.from(previewData.entries()).forEach(([teamId, { teamName, rows }]) => {
+    // Data rows
+    let rowIdx = 6;
+    Array.from(previewData.entries()).forEach(([, { teamName, rows }]) => {
       rows.forEach((row) => {
-        const status = row.totalMissed === 0 ? 'Perfect Attendance' : 'Partially Absent';
-        summaryData.push([
-          teamName,
-          row.memberName,
-          row.year,
-          row.department,
-          row.role || 'Member',
-          row.sessionsRecorded,
-          row.totalMissed,
-          status,
-        ]);
+        const status = row.totalMissed === 0 ? 'Perfect' : 'Partially Absent';
+        const excelRow = summarySheet.getRow(rowIdx);
+        excelRow.values = [
+          teamName, row.memberName, row.year, row.department,
+          row.role || 'Member', row.sessionsRecorded, row.totalMissed, status,
+        ];
 
-        // Collect subject breakdown data
-        if (row.subjectBreakdown && row.subjectBreakdown.length > 0) {
-          if (!subjectBreakdownData[teamName]) {
-            subjectBreakdownData[teamName] = [
-              ['Subject Breakdown: ' + teamName],
-              [`Period: ${startDate} to ${endDate}`],
-              [],
-              ['Member Name', 'Subject', 'Faculty', 'Missed Lectures'],
-            ];
-          }
-          row.subjectBreakdown.forEach((sub) => {
-            if (sub.missed > 0) {
-              subjectBreakdownData[teamName].push([
-                row.memberName,
-                sub.subjectName,
-                sub.facultyName || '—',
-                sub.missed,
-              ]);
-            }
+        // Striped rows
+        if (rowIdx % 2 === 0) {
+          excelRow.eachCell((cell) => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
           });
         }
+
+        // Style status + missed columns
+        const missedCell = excelRow.getCell(7);
+        const statusCell = excelRow.getCell(8);
+
+        if (row.totalMissed === 0) {
+          missedCell.font = { bold: true, color: { argb: GREEN_TEXT } };
+          statusCell.font = { bold: true, color: { argb: GREEN_TEXT } };
+          statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_BG } };
+        } else if (row.totalMissed >= 5) {
+          missedCell.font = { bold: true, color: { argb: RED_TEXT } };
+          statusCell.font = { bold: true, color: { argb: RED_TEXT } };
+          statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED_BG } };
+        } else {
+          missedCell.font = { bold: true, color: { argb: AMBER_TEXT } };
+          statusCell.font = { bold: true, color: { argb: AMBER_TEXT } };
+          statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AMBER_BG } };
+        }
+
+        missedCell.alignment = { horizontal: 'center' };
+        statusCell.alignment = { horizontal: 'center' };
+
+        excelRow.eachCell((cell) => { cell.border = thinBorder; });
+        rowIdx++;
       });
     });
 
-    // Add summary sheet
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    summarySheet['!cols'] = [
-      { wch: 25 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
-      { wch: 15 }, { wch: 18 }, { wch: 20 }, { wch: 22 },
-    ];
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // ── Date-wise Attendance Matrix per team ──
+    // ═══════════════════════════════════════════
+    // SHEET 2+: Date-wise Attendance per team
+    // ═══════════════════════════════════════════
     for (const teamId of selectedTeamIds) {
       const team = teams.find((t) => t.id === teamId);
       if (!team) continue;
 
-      // Fetch raw entries for this team
       const [members, entries] = await Promise.all([
         getTeamMembers(teamId, true),
         getEntriesByTeam(teamId, startDate, endDate),
       ]);
-
       if (members.length === 0) continue;
 
-      // Collect all unique dates from entries, sorted
       const allDates = Array.from(new Set(entries.map(e => e.date))).sort();
       if (allDates.length === 0) continue;
 
-      // Build member → date → { totalMissed, subjectDetails }
+      // Build member → date → missed
       const memberDateMap = new Map<string, {
-        name: string;
-        year: string;
-        dept: string;
-        dates: Map<string, { total: number; subjects: string[] }>;
+        name: string; year: string; dept: string;
+        dates: Map<string, number>;
       }>();
-
       for (const m of members) {
-        memberDateMap.set(m.id, {
-          name: m.name,
-          year: m.year,
-          dept: m.department,
-          dates: new Map(),
-        });
+        memberDateMap.set(m.id, { name: m.name, year: m.year, dept: m.department, dates: new Map() });
       }
-
       for (const entry of entries) {
         const member = memberDateMap.get(entry.memberId);
-        if (!member) continue;
-        const existing = member.dates.get(entry.date);
-        const subName = subjectMap[entry.subjectId]?.subjectName || entry.subjectId;
-        if (existing) {
-          existing.total += entry.missed;
-          if (entry.missed > 0) existing.subjects.push(`${subName}(${entry.missed})`);
-        } else {
-          member.dates.set(entry.date, {
-            total: entry.missed,
-            subjects: entry.missed > 0 ? [`${subName}(${entry.missed})`] : [],
-          });
+        if (member) {
+          member.dates.set(entry.date, (member.dates.get(entry.date) || 0) + entry.missed);
         }
       }
 
-      // Format date headers as "DD MMM"
       const formatShort = (d: string) => {
         const dt = new Date(d + 'T00:00:00');
         return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
       };
 
-      // Build date-wise sheet: Student Name | Year | Dept | Date1 | Date2 | ... | Total
-      const dateHeaders = allDates.map(formatShort);
-      const headerRow: (string | number)[] = ['Student Name', 'Year', 'Dept', ...dateHeaders, 'Total Missed'];
-
-      const dateSheetData: (string | number)[][] = [
-        [`Date-wise Attendance: ${team.name}`],
-        [`Period: ${startDate} to ${endDate}`],
-        [`Values show missed lectures per day (0 = present, blank = no record)`],
-        [],
-        headerRow,
-      ];
-
-      const sortedMembers = Array.from(memberDateMap.values())
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      for (const member of sortedMembers) {
-        let totalMissed = 0;
-        const row: (string | number)[] = [member.name, member.year, member.dept];
-        for (const date of allDates) {
-          const dayData = member.dates.get(date);
-          if (dayData) {
-            row.push(dayData.total);
-            totalMissed += dayData.total;
-          } else {
-            row.push('');
-          }
-        }
-        row.push(totalMissed);
-        dateSheetData.push(row);
-      }
-
-      const dateSheet = XLSX.utils.aoa_to_sheet(dateSheetData);
-      // Set column widths
-      const dateCols = [
-        { wch: 25 }, // Name
-        { wch: 8 },  // Year
-        { wch: 8 },  // Dept
-        ...allDates.map(() => ({ wch: 8 })),
-        { wch: 12 }, // Total
-      ];
-      dateSheet['!cols'] = dateCols;
-
       const safeSheetName = `${team.name} Daily`.substring(0, 31).replace(/[\\/*?:[\]]/g, '');
-      XLSX.utils.book_append_sheet(workbook, dateSheet, safeSheetName);
+      const dateSheet = workbook.addWorksheet(safeSheetName, {
+        views: [{ state: 'frozen', xSplit: 3, ySplit: 3 }],
+      });
+
+      // Title
+      const totalCols = 3 + allDates.length + 1;
+      dateSheet.mergeCells(1, 1, 1, totalCols);
+      const dtTitle = dateSheet.getCell(1, 1);
+      dtTitle.value = `DATE-WISE ATTENDANCE: ${team.name.toUpperCase()}`;
+      dtTitle.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      dtTitle.fill = headerFill;
+      dtTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+      dateSheet.getRow(1).height = 26;
+
+      dateSheet.mergeCells(2, 1, 2, totalCols);
+      const dtPeriod = dateSheet.getCell(2, 1);
+      dtPeriod.value = `Period: ${startDate} to ${endDate}  |  0 = Present  •  Blank = No Record  •  Number = Missed Lectures`;
+      dtPeriod.font = { size: 8, italic: true, color: { argb: 'FF64748B' } };
+      dtPeriod.alignment = { horizontal: 'center' };
+      dtPeriod.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+
+      // Header row
+      const dateHeaders = ['Student Name', 'Year', 'Dept', ...allDates.map(formatShort), 'Total'];
+      const dtHeaderRow = dateSheet.getRow(3);
+      dateHeaders.forEach((h, i) => { dtHeaderRow.getCell(i + 1).value = h; });
+      applyHeaderStyle(dtHeaderRow);
+      dtHeaderRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+
+      // Column widths
+      dateSheet.getColumn(1).width = 22;
+      dateSheet.getColumn(2).width = 7;
+      dateSheet.getColumn(3).width = 7;
+      for (let i = 0; i < allDates.length; i++) { dateSheet.getColumn(4 + i).width = 8; }
+      dateSheet.getColumn(4 + allDates.length).width = 10;
+
+      // Data rows
+      const sortedMembers = Array.from(memberDateMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      let dateRowIdx = 4;
+      for (const member of sortedMembers) {
+        let total = 0;
+        const excelRow = dateSheet.getRow(dateRowIdx);
+        excelRow.getCell(1).value = member.name;
+        excelRow.getCell(1).font = { bold: true, size: 9 };
+        excelRow.getCell(1).alignment = { horizontal: 'left' };
+        excelRow.getCell(2).value = member.year;
+        excelRow.getCell(2).font = { size: 8 };
+        excelRow.getCell(3).value = member.dept;
+        excelRow.getCell(3).font = { size: 8 };
+
+        for (let i = 0; i < allDates.length; i++) {
+          const missed = member.dates.get(allDates[i]);
+          const cell = excelRow.getCell(4 + i);
+          if (missed !== undefined) {
+            cell.value = missed;
+            total += missed;
+            if (missed === 0) {
+              cell.font = { bold: true, size: 9, color: { argb: GREEN_TEXT } };
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_BG } };
+            } else {
+              cell.font = { bold: true, size: 9, color: { argb: RED_TEXT } };
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED_BG } };
+            }
+          } else {
+            cell.value = '';
+          }
+          cell.alignment = { horizontal: 'center' };
+        }
+
+        // Total column
+        const totalCell = excelRow.getCell(4 + allDates.length);
+        totalCell.value = total;
+        totalCell.font = { bold: true, size: 10, color: { argb: total === 0 ? GREEN_TEXT : RED_TEXT } };
+        totalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+        totalCell.alignment = { horizontal: 'center' };
+
+        // Borders + striping
+        excelRow.eachCell((cell) => { cell.border = thinBorder; });
+        if (dateRowIdx % 2 === 1) {
+          excelRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+          excelRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+          excelRow.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+        }
+        dateRowIdx++;
+      }
     }
 
-    // Add subject breakdown sheets
-    Object.entries(subjectBreakdownData).forEach(([teamName, data]) => {
-      const sheet = XLSX.utils.aoa_to_sheet(data);
-      sheet['!cols'] = [
-        { wch: 25 }, { wch: 40 }, { wch: 25 }, { wch: 18 },
-      ];
+    // ═══════════════════════════════════════════
+    // SHEET 3+: Subject Breakdown per team
+    // ═══════════════════════════════════════════
+    Array.from(previewData.entries()).forEach(([, { teamName, rows }]) => {
+      const missedEntries: { member: string; subject: string; faculty: string; missed: number }[] = [];
+      rows.forEach(row => {
+        row.subjectBreakdown?.forEach(sub => {
+          if (sub.missed > 0) {
+            missedEntries.push({
+              member: row.memberName,
+              subject: sub.subjectName,
+              faculty: sub.facultyName || '—',
+              missed: sub.missed,
+            });
+          }
+        });
+      });
+
+      if (missedEntries.length === 0) return;
+
       const safeSheetName = `${teamName} Subjects`.substring(0, 31).replace(/[\\/*?:[\]]/g, '');
-      XLSX.utils.book_append_sheet(workbook, sheet, safeSheetName);
+      const subSheet = workbook.addWorksheet(safeSheetName, {
+        views: [{ state: 'frozen', ySplit: 4 }],
+      });
+
+      // Title
+      subSheet.mergeCells('A1:D1');
+      const subTitle = subSheet.getCell('A1');
+      subTitle.value = `SUBJECT BREAKDOWN: ${teamName.toUpperCase()}`;
+      subTitle.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      subTitle.fill = tealFill;
+      subTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+      subSheet.getRow(1).height = 26;
+
+      subSheet.mergeCells('A2:D2');
+      const subPeriod = subSheet.getCell('A2');
+      subPeriod.value = `Period: ${startDate} to ${endDate}`;
+      subPeriod.font = { size: 9, italic: true, color: { argb: 'FF64748B' } };
+      subPeriod.alignment = { horizontal: 'center' };
+
+      subSheet.getRow(3).height = 6;
+
+      // Header
+      const subHeaders = ['Member Name', 'Subject', 'Faculty', 'Missed Lectures'];
+      const subHeaderRow = subSheet.getRow(4);
+      subHeaders.forEach((h, i) => { subHeaderRow.getCell(i + 1).value = h; });
+      applyHeaderStyle(subHeaderRow, tealFill);
+      subHeaderRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+      subHeaderRow.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+      subHeaderRow.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
+
+      subSheet.getColumn(1).width = 24;
+      subSheet.getColumn(2).width = 35;
+      subSheet.getColumn(3).width = 22;
+      subSheet.getColumn(4).width = 16;
+
+      // Data
+      missedEntries.forEach((entry, i) => {
+        const r = subSheet.getRow(5 + i);
+        r.values = [entry.member, entry.subject, entry.faculty, entry.missed];
+        r.getCell(4).font = { bold: true, color: { argb: RED_TEXT } };
+        r.getCell(4).alignment = { horizontal: 'center' };
+        if (i % 2 === 0) {
+          r.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+          });
+        }
+        r.eachCell(cell => { cell.border = thinBorder; });
+      });
     });
 
     return workbook;
@@ -314,7 +461,8 @@ function ReportsContent() {
     try {
       const workbook = await generateExcelData();
       const fileName = `attendance-report_${dateToISTString(dateFrom)}_${dateToISTString(dateTo)}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
       toast.success("Excel file downloaded successfully");
     } catch (err) {
       console.error("Excel generation error:", err);
