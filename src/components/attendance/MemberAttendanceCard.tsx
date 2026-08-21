@@ -236,8 +236,15 @@ export function MemberAttendanceCard({
       if (entries.length > 0 || deletions.length > 0) {
         await saveAttendanceEntries(entries, deletions, markedByEmail);
 
-        // Also sync summary records to attendance collection for History page
-        for (const date of dates) {
+        // Sync summary records to attendance collection ONLY for dates with dirty cells
+        const dirtyDates = new Set<string>();
+        for (const subject of subjects) {
+          for (const date of dates) {
+            if (cells[subject.id]?.[date]?.dirty) dirtyDates.add(date);
+          }
+        }
+
+        for (const date of dirtyDates) {
           let dateMissed = 0;
           let hasEntriesForDate = false;
           for (const subject of subjects) {

@@ -76,7 +76,9 @@ service cloud.firestore {
       allow create, update: if isAuthorized()
         && (isAdmin()
             || (getUserAccessLevel() == "Head's Access"));
-      allow delete: if isAdmin();
+      allow delete: if isAuthorized()
+        && (isAdmin()
+            || (getUserAccessLevel() == "Head's Access"));
     }
 
     // Authorized Users: read by any authorized user, write only by admins
