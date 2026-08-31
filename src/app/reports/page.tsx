@@ -448,6 +448,205 @@ function ReportsContent() {
       });
     });
 
+    // ═══════════════════════════════════════════
+    // DEPARTMENT SHEETS: one per department with year sections
+    // ═══════════════════════════════════════════
+    const DEPT_FILL: ExcelJS.FillPattern = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4338CA' } }; // Indigo
+    const YEAR_FILL: ExcelJS.FillPattern = { type: 'pattern', pattern: 'solid', fgColor: { argb: TEAL } };
+
+    // Collect all members across teams grouped by department → year
+    type DeptMember = {
+      memberName: string;
+      team: string;
+      year: string;
+      role: string | null;
+      totalMissed: number;
+      sessionsRecorded: number;
+      subjectBreakdown?: { subjectName: string; facultyName: string; missed: number }[];
+    };
+
+    const deptMap = new Map<string, DeptMember[]>();
+
+    for (const [, { teamName, rows }] of previewData.entries()) {
+      for (const row of rows) {
+        const dept = row.department || 'Other';
+        if (!deptMap.has(dept)) deptMap.set(dept, []);
+        deptMap.get(dept)!.push({
+          memberName: row.memberName,
+          team: teamName,
+          year: row.year,
+          role: row.role,
+          totalMissed: row.totalMissed,
+          sessionsRecorded: row.sessionsRecorded,
+          subjectBreakdown: row.subjectBreakdown,
+        });
+      }
+    }
+
+    // Define consistent year ordering
+    const yearOrder = ['FY', 'SY', 'TY', 'BE'];
+
+    for (const [dept, members] of deptMap.entries()) {
+      if (members.length === 0) continue;
+
+      const safeSheetName = `Dept ${dept}`.substring(0, 31).replace(/[\\/*?:[\]]/g, '');
+      const deptSheet = workbook.addWorksheet(safeSheetName, {
+        views: [{ state: 'frozen', ySplit: 3 }],
+      });
+
+      // Column widths
+      deptSheet.getColumn(1).width = 24;  // Name
+      deptSheet.getColumn(2).width = 18;  // Team
+      deptSheet.getColumn(3).width = 14;  // Role
+      deptSheet.getColumn(4).width = 12;  // Sessions
+      deptSheet.getColumn(5).width = 18;  // Missed
+      deptSheet.getColumn(6).width = 28;  // Subject
+      deptSheet.getColumn(7).width = 20;  // Faculty
+      deptSheet.getColumn(8).width = 16;  // Subject Missed
+
+      const totalCols = 8;
+
+      // Title
+      deptSheet.mergeCells(1, 1, 1, totalCols);
+      const dtTitle = deptSheet.getCell(1, 1);
+      dtTitle.value = `DEPARTMENT: ${dept.toUpperCase()}`;
+      dtTitle.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+      dtTitle.fill = DEPT_FILL;
+      dtTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+      deptSheet.getRow(1).height = 28;
+
+      deptSheet.mergeCells(2, 1, 2, totalCols);
+      const dtPeriod = deptSheet.getCell(2, 1);
+      dtPeriod.value = `Period: ${startDate} to ${endDate}  |  Generated: ${genDate}`;
+      dtPeriod.font = { size: 9, italic: true, color: { argb: 'FF64748B' } };
+      dtPeriod.alignment = { horizontal: 'center' };
+      dtPeriod.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+
+      let deptRowIdx = 3;
+
+      // Group by year, use consistent ordering
+      const years = [...new Set(members.map(m => m.year))].sort((a, b) => {
+        const ai = yearOrder.indexOf(a);
+        const bi = yearOrder.indexOf(b);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+
+      for (const year of years) {
+        const yearMembers = members
+          .filter(m => m.year === year)
+          .sort((a, b) => a.memberName.localeCompare(b.memberName));
+
+        deptRowIdx++; // blank spacer row
+
+        // Year section header
+        deptSheet.mergeCells(deptRowIdx, 1, deptRowIdx, totalCols);
+        const yearHeader = deptSheet.getRow(deptRowIdx);
+        yearHeader.getCell(1).value = `  ${year} — ${dept}  (${yearMembers.length} member${yearMembers.length !== 1 ? 's' : ''})`;
+        yearHeader.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+        yearHeader.getCell(1).fill = YEAR_FILL;
+        yearHeader.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+        yearHeader.height = 24;
+        deptRowIdx++;
+
+        // Column headers for this section
+        const sectionHeaders = ['Member Name', 'Team', 'Role', 'Sessions', 'Total Missed', 'Subject', 'Faculty', 'Missed'];
+        const sHdrRow = deptSheet.getRow(deptRowIdx);
+        sectionHeaders.forEach((h, i) => { sHdrRow.getCell(i + 1).value = h; });
+        applyHeaderStyle(sHdrRow);
+        sHdrRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+        sHdrRow.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+        sHdrRow.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
+        deptRowIdx++;
+
+        let sectionMissedTotal = 0;
+
+        for (const member of yearMembers) {
+          const subBreakdown = (member.subjectBreakdown || []).filter(s => s.missed > 0);
+          const rowsNeeded = Math.max(1, subBreakdown.length);
+
+          for (let si = 0; si < rowsNeeded; si++) {
+            const excelRow = deptSheet.getRow(deptRowIdx);
+
+            if (si === 0) {
+              // First row: member info
+              excelRow.getCell(1).value = member.memberName;
+              excelRow.getCell(1).font = { bold: true, size: 9 };
+              excelRow.getCell(1).alignment = { horizontal: 'left' };
+              excelRow.getCell(2).value = member.team;
+              excelRow.getCell(2).font = { size: 9 };
+              excelRow.getCell(3).value = member.role || 'Member';
+              excelRow.getCell(3).font = { size: 9 };
+              excelRow.getCell(4).value = member.sessionsRecorded;
+              excelRow.getCell(4).alignment = { horizontal: 'center' };
+
+              // Total missed with color
+              const missedCell = excelRow.getCell(5);
+              missedCell.value = member.totalMissed;
+              missedCell.alignment = { horizontal: 'center' };
+              if (member.totalMissed === 0) {
+                missedCell.font = { bold: true, color: { argb: GREEN_TEXT } };
+                missedCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_BG } };
+              } else if (member.totalMissed >= 5) {
+                missedCell.font = { bold: true, color: { argb: RED_TEXT } };
+                missedCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED_BG } };
+              } else {
+                missedCell.font = { bold: true, color: { argb: AMBER_TEXT } };
+                missedCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AMBER_BG } };
+              }
+
+              sectionMissedTotal += member.totalMissed;
+            }
+
+            // Subject breakdown (one per row)
+            if (si < subBreakdown.length) {
+              const sub = subBreakdown[si];
+              excelRow.getCell(6).value = sub.subjectName;
+              excelRow.getCell(6).font = { size: 9 };
+              excelRow.getCell(6).alignment = { horizontal: 'left' };
+              excelRow.getCell(7).value = sub.facultyName || '—';
+              excelRow.getCell(7).font = { size: 8, color: { argb: 'FF64748B' } };
+              excelRow.getCell(7).alignment = { horizontal: 'left' };
+              excelRow.getCell(8).value = sub.missed;
+              excelRow.getCell(8).font = { bold: true, size: 9, color: { argb: RED_TEXT } };
+              excelRow.getCell(8).alignment = { horizontal: 'center' };
+            }
+
+            // Alternating row colors
+            if (deptRowIdx % 2 === 0) {
+              for (let c = 1; c <= totalCols; c++) {
+                const cell = excelRow.getCell(c);
+                if (!cell.fill || (cell.fill as ExcelJS.FillPattern).fgColor?.argb === undefined) {
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+                }
+              }
+            }
+
+            excelRow.eachCell(cell => { cell.border = thinBorder; });
+            deptRowIdx++;
+          }
+        }
+
+        // Year section total row
+        const totalRow = deptSheet.getRow(deptRowIdx);
+        deptSheet.mergeCells(deptRowIdx, 1, deptRowIdx, 4);
+        totalRow.getCell(1).value = `  Total — ${year} ${dept}`;
+        totalRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+        totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+        totalRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+        totalRow.getCell(5).value = sectionMissedTotal;
+        totalRow.getCell(5).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+        totalRow.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+        totalRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+        // Fill remaining cells in total row
+        for (let c = 6; c <= totalCols; c++) {
+          totalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+        }
+        totalRow.eachCell(cell => { cell.border = thinBorder; });
+        totalRow.height = 22;
+        deptRowIdx++;
+      }
+    }
+
     return workbook;
   };
 
