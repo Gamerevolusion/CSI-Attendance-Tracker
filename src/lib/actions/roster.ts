@@ -93,35 +93,43 @@ export async function deleteMember(
   teamId: string,
   memberId: string
 ): Promise<void> {
-  const batch = writeBatch(db);
+  const MAX_BATCH = 490;
 
-  // 1. Delete member document
-  const memberRef = doc(db, "teams", teamId, "members", memberId);
-  batch.delete(memberRef);
+  // Collect all refs to delete
+  const refsToDelete: import("firebase/firestore").DocumentReference[] = [];
 
-  // 2. Delete all attendanceEntries for this member
+  // 1. Member document
+  refsToDelete.push(doc(db, "teams", teamId, "members", memberId));
+
+  // 2. All attendanceEntries for this member
   try {
     const entriesQ = query(
       collection(db, "attendanceEntries"),
       where("memberId", "==", memberId)
     );
     const entriesSnap = await getDocs(entriesQ);
-    entriesSnap.docs.forEach((d) => batch.delete(d.ref));
+    entriesSnap.docs.forEach((d) => refsToDelete.push(d.ref));
   } catch (err) {
     console.error("Error finding member entries to delete:", err);
   }
 
-  // 3. Delete all attendance summary records for this member
+  // 3. All attendance summary records for this member
   try {
     const attendanceQ = query(
       collection(db, "attendance"),
       where("memberId", "==", memberId)
     );
     const attendanceSnap = await getDocs(attendanceQ);
-    attendanceSnap.docs.forEach((d) => batch.delete(d.ref));
+    attendanceSnap.docs.forEach((d) => refsToDelete.push(d.ref));
   } catch (err) {
     console.error("Error finding member attendance records to delete:", err);
   }
 
-  await batch.commit();
+  // Execute in chunked batches to respect Firestore's 500-op limit
+  for (let i = 0; i < refsToDelete.length; i += MAX_BATCH) {
+    const chunk = refsToDelete.slice(i, i + MAX_BATCH);
+    const batch = writeBatch(db);
+    chunk.forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
 }

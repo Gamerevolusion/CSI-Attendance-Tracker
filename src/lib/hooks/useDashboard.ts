@@ -128,7 +128,7 @@ export function useDashboardData({
     // This logic is kept from original but note: we don't have email->memberId mapping here
     // The original comment mentioned keeping full summary for "Your Team's Attendance"
     return summary;
-  }, [members, todayRecords, filteredRecords]);
+  }, [members, filteredRecords]);
 
   const maxSessions = useMemo(() => {
     if (!attendanceSummary.length) return 0;

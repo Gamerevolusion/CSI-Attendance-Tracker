@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useReducer, useMemo, useCallback } from "react";
+import { useState, useReducer, useMemo, useCallback, useEffect, useRef } from "react";
 import { produce } from "immer";
 import type { Member, Subject, CellData, CellState, AttendanceEntry } from "@/types";
 import type { EntryWrite } from "@/lib/actions/attendanceEntries";
@@ -8,6 +8,9 @@ import { saveAttendanceEntries } from "@/lib/actions/attendanceEntries";
 import { saveAttendance } from "@/lib/actions/attendance";
 import { ChevronDown, ChevronRight, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+/** Firestore batch limit — keep under 500 to be safe */
+const MAX_BATCH_SIZE = 490;
 
 interface MemberAttendanceCardProps {
   member: Member;
@@ -143,10 +146,21 @@ export function MemberAttendanceCard({
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Keep a ref to existingEntries so handleSave always sees the latest
+  const existingEntriesRef = useRef(existingEntries);
+  useEffect(() => {
+    existingEntriesRef.current = existingEntries;
+  }, [existingEntries]);
+
   // Use reducer with Immer for granular state updates
   const [cells, dispatch] = useReducer(cellsReducer, null, () =>
     buildCells(subjects, dates, existingEntries)
   );
+
+  // Reset cells when subjects, dates, or existingEntries change (e.g. team/date switch)
+  useEffect(() => {
+    dispatch({ type: "RESET", cells: buildCells(subjects, dates, existingEntries) });
+  }, [subjects, dates, existingEntries]);
 
   // Compute total missed per date for the collapsed summary
   const totalMissedPerDate = useMemo(() => {
@@ -205,6 +219,7 @@ export function MemberAttendanceCard({
     try {
       const entries: EntryWrite[] = [];
       const deletions: string[] = [];
+      const currentExisting = existingEntriesRef.current;
 
       for (const subject of subjects) {
         for (const date of dates) {
@@ -214,7 +229,8 @@ export function MemberAttendanceCard({
           const docId = `${member.id}_${subject.id}_${date}`;
 
           if (cell.state === "no-class") {
-            const hadEntry = existingEntries.some(
+            // Use ref to avoid stale closure — checks whether an entry existed at load time
+            const hadEntry = currentExisting.some(
               (e) => e.subjectId === subject.id && e.date === date
             );
             if (hadEntry) {
@@ -234,7 +250,31 @@ export function MemberAttendanceCard({
       }
 
       if (entries.length > 0 || deletions.length > 0) {
-        await saveAttendanceEntries(entries, deletions, markedByEmail);
+        // Split into batches if we exceed Firestore's 500-operation limit
+        const totalOps = entries.length + deletions.length;
+        if (totalOps <= MAX_BATCH_SIZE) {
+          await saveAttendanceEntries(entries, deletions, markedByEmail);
+        } else {
+          // Chunk into safe-sized batches
+          let entryIdx = 0;
+          let deleteIdx = 0;
+          while (entryIdx < entries.length || deleteIdx < deletions.length) {
+            const batchEntries: EntryWrite[] = [];
+            const batchDeletions: string[] = [];
+            let opsInBatch = 0;
+
+            while (entryIdx < entries.length && opsInBatch < MAX_BATCH_SIZE) {
+              batchEntries.push(entries[entryIdx++]);
+              opsInBatch++;
+            }
+            while (deleteIdx < deletions.length && opsInBatch < MAX_BATCH_SIZE) {
+              batchDeletions.push(deletions[deleteIdx++]);
+              opsInBatch++;
+            }
+
+            await saveAttendanceEntries(batchEntries, batchDeletions, markedByEmail);
+          }
+        }
 
         // Sync summary records to attendance collection ONLY for dates with dirty cells
         const dirtyDates = new Set<string>();
@@ -244,6 +284,8 @@ export function MemberAttendanceCard({
           }
         }
 
+        // Build all summary writes and execute in parallel
+        const summaryPromises: Promise<void>[] = [];
         for (const date of dirtyDates) {
           let dateMissed = 0;
           let hasEntriesForDate = false;
@@ -257,21 +299,31 @@ export function MemberAttendanceCard({
             }
           }
           if (hasEntriesForDate) {
-            await saveAttendance(
-              teamId,
-              date,
-              subjects.length,
-              [
-                {
-                  memberId: member.id,
-                  memberName: member.name,
-                  lectures: Array(dateMissed).fill(true),
-                  totalMissed: dateMissed,
-                },
-              ],
-              markedByEmail
+            // Build a proper lectures array matching actual subject count
+            const lecturesArr = subjects.map((s) => {
+              const c = cells[s.id]?.[date];
+              return c?.state === "missed" && c.missed > 0;
+            });
+            summaryPromises.push(
+              saveAttendance(
+                teamId,
+                date,
+                subjects.length,
+                [
+                  {
+                    memberId: member.id,
+                    memberName: member.name,
+                    lectures: lecturesArr,
+                    totalMissed: dateMissed,
+                  },
+                ],
+                markedByEmail
+              )
             );
           }
+        }
+        if (summaryPromises.length > 0) {
+          await Promise.all(summaryPromises);
         }
       }
 

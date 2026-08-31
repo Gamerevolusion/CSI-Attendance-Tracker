@@ -28,6 +28,11 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/authorizedUsers/$(request.auth.token.email)).data.accessLevel;
     }
 
+    // Helper: get the user's assigned teamId
+    function getUserTeamId() {
+      return get(/databases/$(database)/documents/authorizedUsers/$(request.auth.token.email)).data.teamId;
+    }
+
     // Teams: read by any authorized user, write only by admins
     match /teams/{teamId} {
       allow read: if isAuthorized();
@@ -45,7 +50,8 @@ service cloud.firestore {
       allow read: if isAuthorized();
       allow create, update: if isAuthorized()
         && (isAdmin()
-            || (getUserAccessLevel() == "Head's Access"));
+            || (getUserAccessLevel() == "Head's Access"
+                && request.resource.data.teamId == getUserTeamId()));
       allow delete: if isAdmin();
     }
 
@@ -65,7 +71,8 @@ service cloud.firestore {
       allow read: if isAuthorized();
       allow create, update: if isAuthorized()
         && (isAdmin()
-            || (getUserAccessLevel() == "Head's Access"));
+            || (getUserAccessLevel() == "Head's Access"
+                && request.resource.data.teamId == getUserTeamId()));
       allow delete: if isAuthorized()
         && (isAdmin()
             || (getUserAccessLevel() == "Head's Access"));

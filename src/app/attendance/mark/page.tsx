@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuthUser, useAuthPermissions } from "@/contexts/AuthContext";
 import { HeadRoute } from "@/components/HeadRoute";
 import { getTeams, getTeamMembers } from "@/lib/actions/roster";
@@ -85,6 +85,9 @@ function MarkAttendanceContent() {
     load();
   }, [accessLevel, userTeamId]);
 
+  // Ref to track loaded curriculum IDs without triggering re-renders
+  const loadedCurriculumsRef = useRef<Set<string>>(new Set());
+
   // Load subjects for the loaded members' year/department combinations
   useEffect(() => {
     if (!members.length || !curriculums.length) return;
@@ -95,7 +98,8 @@ function MarkAttendanceContent() {
         const currIds = new Set(members.map(m => `${m.year}_${m.department}`));
         
         for (const currId of currIds) {
-          if (subjectsByCurriculum[currId]) continue; // already loaded
+          if (loadedCurriculumsRef.current.has(currId)) continue; // already loaded
+          loadedCurriculumsRef.current.add(currId);
           const subjects = await getSubjects(currId);
           setSubjectsByCurriculum(prev => ({
             ...prev,
